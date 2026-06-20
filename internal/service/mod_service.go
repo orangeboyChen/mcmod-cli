@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/orangeboyChen/mcmod-cli/internal/config"
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/resolver"
 )
@@ -462,55 +461,4 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 		fmt.Fprintf(os.Stderr, "lock: failed mods are NOT in the lock file; fix the underlying problem and re-run `mcmod lock`\n")
 	}
 	return lf, nil
-}
-
-// GetCFKey returns the effective CurseForge API key.
-func GetCFKey() string {
-	return config.GetCFKey()
-}
-
-// ConfigureCFKey sets the CurseForge API key at project level.
-func ConfigureCFKey(key string) error {
-	return config.WriteProjectConfig(key)
-}
-
-// ConfigureUserCFKey sets the CurseForge API key at user level.
-func ConfigureUserCFKey(key string) error {
-	return config.WriteUserConfig(key)
-}
-
-// ReadPackSpec reads packspec.json.
-func ReadPackSpec(dir string) (*domain.PackSpec, error) {
-	return domain.ReadPackSpec(dir)
-}
-
-// WriteLockFile writes a lock file.
-func WriteLockFile(lf *domain.PackLock) error {
-	path := domain.LockFilePath(lf.MinecraftVersion, lf.Loader)
-	return domain.WriteLockFile(path, lf)
-}
-
-// WriteReleaseIndex writes a release index file.
-func WriteReleaseIndex(mcVersion string, ri *domain.ReleaseIndex) error {
-	return domain.WriteReleaseIndex(domain.ReleaseIndexPath(mcVersion), ri)
-}
-
-// ReadReleaseIndex reads a release index file.
-func ReadReleaseIndex(mcVersion string) (*domain.ReleaseIndex, error) {
-	return domain.ReadReleaseIndex(domain.ReleaseIndexPath(mcVersion))
-}
-
-// MarshalLockJSON marshals lock file to JSON bytes.
-func MarshalLockJSON(lf *domain.PackLock) ([]byte, error) {
-	return json.MarshalIndent(lf, "", "  ")
-}
-
-// LockFilePath returns the lock file path.
-func LockFilePath(mcVersion, loader string) string {
-	return domain.LockFilePath(mcVersion, loader)
-}
-
-// ReadLockFile reads a lock file.
-func ReadLockFile(dir string) (*domain.PackLock, error) {
-	return domain.ReadLockFile(dir)
 }

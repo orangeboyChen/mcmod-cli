@@ -262,3 +262,25 @@ func unmarshalPackLock(data []byte) (*PackLock, error) {
 
 	return nil, fmt.Errorf("failed to unmarshal lock data")
 }
+
+// ReadPackSpec reads and parses packspec.json from a directory.
+func ReadPackSpec(dir string) (*PackSpec, error) {
+	data, err := os.ReadFile(filepath.Join(dir, "packspec.json"))
+	if err != nil {
+		return nil, err
+	}
+	var spec PackSpec
+	if err := json.Unmarshal(data, &spec); err != nil {
+		return nil, err
+	}
+	return &spec, nil
+}
+
+// WritePackSpec writes packspec.json to a directory.
+func WritePackSpec(dir string, spec *PackSpec) error {
+	data, err := json.MarshalIndent(spec, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "packspec.json"), data, 0644)
+}

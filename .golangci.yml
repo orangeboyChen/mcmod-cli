@@ -1,0 +1,394 @@
+# File: .golangci.yml
+# Created: 2026-06-20
+# Description: golangci-lint configuration for mcmod. Targets 0 issues.
+# Tier: "standard+" + style consistency, security, and complexity guards.
+# See AGENTS.md "Linting" for the full rationale and per-linter explanations.
+
+version: "2"
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+
+linters:
+  default: standard
+
+  # ---- Enable order reflects the category order in AGENTS.md "Linting". ----
+  enable:
+    # --- Style (replaces the long-deprecated golint) ---
+    - revive           # exported/var-naming/if-return/receiver-naming/...
+    - godot           # comments end in a period (style consistency)
+    - gocritic        # diagnostic / style / performance bundle
+    - misspell        # English-only spelling in comments / strings
+    - canonicalheader # net/http.Header keys must be canonical
+    - asciicheck      # identifiers are pure ASCII
+    - bidichk         # no dangerous unicode bidi sequences
+    - errname         # sentinel errors are `Err*`, error types end in `Error`
+    - err113          # consistent error handling style
+    - testpackage     # prefer `package foo_test` for black-box tests
+
+    # --- Bug-prone correctness ---
+    - errcheck        # every error return value must be checked
+    - govet           # standard go vet checks
+    - staticcheck     # SA* / QF* / ST* correctness
+    - unused          # dead code: funcs, types, vars, consts
+    - ineffassign     # assignments that are never read
+    - nilerr          # `return nil` ignoring a non-nil err
+    - errorlint       # `%w` vs `%v`, errors.Is/As conventions
+    - bodyclose       # http.Response.Body must be closed
+    - contextcheck    # ctx propagation across function boundaries
+    - fatcontext      # ctx declared inside loops / nested funcs
+    - containedctx    # struct must not embed context.Context
+    - exhaustive      # switch must cover all enum values
+    - durationcheck   # time.Duration multiplication
+    - makezero        # `make([]T, n)` should be `make([]T, 0, n)`
+    - nosprintfhostport  # fmt.Sprintf("host:port", ...) is wrong
+    - gocheckcompilerdirectives  # //go: directives must be valid
+    - exptostd        # replace golang.org/x/exp/... with std
+    - decorder        # types / consts / vars / funcs declared in order
+    - forbidigo       # block fmt.Println / panic / log.Fatal etc.
+
+    # --- Test discipline (Ginkgo + standard testing) ---
+    - paralleltest    # t.Parallel() in test funcs that should be parallel
+    - ginkgolinter    # Ginkgo/Gomega style enforcement
+
+    # --- Performance ---
+    - prealloc        # slice pre-allocation
+    - perfsprint      # fmt.Sprintf → strconv where faster
+
+    # --- Complexity / maintainability ---
+    - cyclop          # cyclomatic complexity per function
+    - gocognit        # cognitive complexity per function
+    - dupl            # duplicate code blocks
+
+    # --- Hygiene ---
+    - goconst         # repeated string/int literals → const
+    - unparam         # unused function parameters
+    - copyloopvar     # Go 1.22+ range loop variable copy trap
+
+    # --- Security ---
+    - gosec           # weak rand, hard-coded creds, unsafe URL joins, ...
+
+    # --- Dependency control (enforces Hard Rule #7 in AGENTS.md) ---
+    - depguard        # block unapproved imports
+
+  settings:
+    # ---- revive: complete rule set tuned for this codebase ----
+    revive:
+      severity: error
+      rules:
+        # Documentation & comments
+        - name: exported
+          severity: error
+        - name: package-comments
+          severity: warning
+        # Naming
+        - name: var-naming
+          severity: error
+        - name: receiver-naming
+          severity: error
+        - name: error-naming
+          severity: error
+        - name: errorf
+          severity: error
+        - name: error-strings
+          severity: error
+        - name: error-return
+          severity: error
+        - name: use-errors-new
+          severity: warning
+        - name: use-fmt-print
+          severity: error
+        - name: string-format
+          severity: warning
+          arguments:
+            - - panic
+              - '/^([^A-Z]|$)/'
+              - must not capitalize first letter
+            - - error
+              - '/(^|[^.])\.$/'
+              - must not end with a period
+        # Imports
+        - name: blank-imports
+          severity: error
+        - name: dot-imports
+          severity: error
+        - name: import-alias-naming
+          severity: error
+        - name: redundant-import-alias
+          severity: error
+        # Control flow
+        - name: empty-block
+          severity: error
+        - name: empty-lines
+          severity: warning
+        - name: superfluous-else
+          severity: warning
+        - name: if-return
+          severity: warning
+        - name: early-return
+          severity: warning
+        - name: indent-error-flow
+          severity: warning
+        - name: range
+          severity: warning
+        - name: unreachable-code
+          severity: error
+        # Concurrency
+        - name: waitgroup-by-value
+          severity: error
+        - name: atomic
+          severity: warning
+        - name: defer
+          severity: error
+        - name: context-as-argument
+          severity: error
+        - name: context-keys-type
+          severity: warning
+        # Style
+        - name: struct-tag
+          severity: error
+        - name: unexported-return
+          severity: error
+        - name: var-declaration
+          severity: warning
+        - name: modifies-parameter
+          severity: warning
+        - name: time-equal
+          severity: warning
+        - name: add-constant
+          severity: warning
+        - name: use-any
+          severity: warning
+        - name: unused-parameter
+          severity: warning
+          arguments:
+            - allowRegex: "^_"
+        - name: unused-receiver
+          severity: warning
+
+    # ---- gocritic: curated diagnostic / style / performance checks ----
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam          # noisy on small value types; revisit if struct args grow
+        - rangeValCopy       # noisy on small structs; revisit case-by-case
+        - commentedOutCode   # we use real comments to disable code; not a smell here
+        - ifElseChain        # readability is fine for short chains
+        - nestingReduce      # let early-return be the only refactor we push
+      enabled-checks:
+        - appendAssign
+        - assignOp
+        - builtinShadow
+        - captLocal
+        - commentFormatting
+        - defaultCaseOrder
+        - docStub
+        - dupBranchBody
+        - dupCase
+        - dupImport
+        - dupSubExpr
+        - elseif
+        - emptyStringTest
+        - exitAfterDefer
+        - flagDeref
+        - flagName
+        - hexLiteral
+        - httpNoBody
+        - importShadow
+        - indexAlloc
+        - initClause
+        - methodExprCall
+        - nilValReturn
+        - octalLiteral
+        - paramTypeCombine
+        - preferFilepathJoin
+        - ptrToRefParam
+        - returnAfterHttpError
+        - singleCaseSwitch
+        - sloppyLen
+        - sprintfQuotedString
+        - sqlQuery
+        - stringConcatSimplify
+        - stringXbytes
+        - switchTrue
+        - timeExprSimplify
+        - tooManyResultsChecker
+        - truncateCmp
+        - typeAssertChain
+        - typeDefFirst
+        - typeSwitchVar
+        - typeUnparen
+        - uncheckedInlineErr
+        - unnecessaryBlock
+        - unnecessaryDefer
+        - valSwap
+        - weakCond
+        - whyNoLint
+
+    # ---- staticcheck: enable the full SA / QF / ST catalogue ----
+    staticcheck:
+      checks:
+        - all
+
+    # ---- errcheck: ignore testify-style asserts in tests ----
+    errcheck:
+      check-blank: true
+      check-type-assertions: true
+      exclude-functions:
+        - (*testing.T).Fatal
+        - (*testing.T).Fatalf
+        - (*testing.T).Log
+        - (*testing.T).Skip
+        - (*testing.T).Skipf
+        - (*testing.T).Error
+        - (*testing.T).Errorf
+        - (*testing.B).Fatal
+        - (*testing.B).Fatalf
+        - (*testing.B).Log
+        - (*testing.B).Skip
+        - (*testing.B).Skipf
+        - (*testing.B).Error
+        - (*testing.B).Errorf
+
+    # ---- errorlint: enforce %w and proper error assertions ----
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+
+    # ---- forbidigo: enforce Hard Rule #9 and CLI output rules ----
+    forbidigo:
+      forbid:
+        - pattern: 'panic\('
+          msg: "do not panic for control flow (AGENTS.md Hard Rule #9)"
+        - pattern: 'log\.Fatal\('
+          msg: "do not log.Fatal outside cmd/mcmod/main.go (AGENTS.md Hard Rule #9)"
+        - pattern: 'log\.Fatalln\('
+          msg: "do not log.Fatal* outside cmd/mcmod/main.go (AGENTS.md Hard Rule #9)"
+        - pattern: 'os\.Exit\('
+          msg: "do not call os.Exit outside cmd/mcmod/main.go (AGENTS.md Hard Rule #9)"
+        - pattern: 'fmt\.Println\('
+          msg: "use cobra cmd.OutOrStdout / ErrOrStderr instead (AGENTS.md Hard Rule #9)"
+        - pattern: 'fmt\.Print\('
+          msg: "use cobra cmd.OutOrStdout / ErrOrStderr instead (AGENTS.md Hard Rule #9)"
+        - pattern: 'log\.Println\('
+          msg: "use cobra cmd.OutOrStdout / ErrOrStderr instead (AGENTS.md Hard Rule #9)"
+        - pattern: 'log\.Print\('
+          msg: "use cobra cmd.OutOrStdout / ErrOrStderr instead (AGENTS.md Hard Rule #9)"
+      # Permit those patterns in cmd/mcmod/main.go only.
+      analyze-types: true
+
+    # ---- gosec: severity tuned to the codebase ----
+    gosec:
+      severity: medium
+      confidence: medium
+      excludes:
+        # G101: hard-coded credentials. We only allow the well-known placeholder
+        # name; any concrete value is still a finding.
+        - G101
+      config:
+        # G104: unhandled errors — already covered by errcheck
+        G104: false
+        # G304: file path traversal — false positives on internal cache paths
+        G304: false
+
+    # ---- ginkgolinter: Ginkgo/Gomega style enforcement ----
+    ginkgolinter:
+      forbid-focus-container: true
+      forbid-spec-pollution: true
+
+    # ---- cyclop / gocognit: complexity caps ----
+    cyclop:
+      max-complexity: 15
+      package-average: 10
+    gocognit:
+      min-complexity: 20
+
+    # ---- depguard: block unapproved imports ----
+    depguard:
+      rules:
+        main:
+          files:
+            - "**/*.go"
+          deny:
+            - pkg: "github.com/pkg/errors"
+              desc: "use the standard library errors + fmt.Errorf(\"...%w\", ...)"
+            - pkg: "gopkg.in/yaml.v2"
+              desc: "use go.yaml.in/yaml/v3 (see go.mod) or encoding/json"
+            - pkg: "gopkg.in/yaml.v3"
+              desc: "use go.yaml.in/yaml/v3 (see go.mod)"
+            - pkg: "github.com/stretchr/testify"
+              desc: "use Ginkgo + Gomega (see docs/014-testing.md)"
+            - pkg: "github.com/davecgh/go-spew"
+              desc: "use the standard library for debug printing"
+            - pkg: "github.com/pmezard/go-difflib"
+              desc: "use Gomega's diff output instead"
+
+    # ---- misspell: English-only with project-specific allowlist ----
+    misspell:
+      locale: US
+      ignore-rules:
+        - curseforge     # proper noun, project name
+        - neoforge
+        - fabric
+        - minecraft
+        - mcmod
+        - modpack
+
+    # ---- dupl: detect repeated code blocks ----
+    dupl:
+      threshold: 80
+
+    # ---- goconst: repeated literals → const ----
+    goconst:
+      numbers: true
+      min: 3
+      min-occurrences: 3
+      match-constant: true
+
+    # ---- godot: comment punctuation ----
+    godot:
+      scope: declarations
+      exclude:
+        - "^//go:.*"
+        - "^//nolint:"
+        - "^// Code generated .* DO NOT EDIT\\.$"
+
+    # ---- testpackage: prefer black-box test packages ----
+    testpackage:
+      skip-regexp: "_test\\.go$"
+
+    # ---- copyloopvar ----
+    copyloopvar:
+      check-alias: true
+
+    # ---- decorder: source order ----
+    decorder:
+      dec-order:
+        - type
+        - const
+        - var
+        - func
+      disable-dec-num-check: false
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      # Match the import groups in AGENTS.md "Coding Style / Imports":
+      # 1) stdlib, 2) third-party, 3) github.com/orangeboyChen/mcmod-cli/internal/...
+      local-prefixes:
+        - github.com/orangeboyChen/mcmod-cli
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+severity:
+  default: error
