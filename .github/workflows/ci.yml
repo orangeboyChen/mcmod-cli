@@ -1,0 +1,56 @@
+# File: .github/workflows/ci.yml
+# Created: 2026-06-20
+# Description: CI workflow for mcmod - lint, test, coverage verification.
+
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go: ['1.26']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Install golint
+        run: go install golang.org/x/lint/golint@latest
+      - name: go mod tidy
+        run: go mod tidy
+      - name: gofmt
+        run: |
+          gofmt -w $(find . -name '*.go' -not -path './.cache/*')
+          git diff --exit-code
+      - name: golint
+        run: golint ./...
+      - name: go vet
+        run: go vet ./...
+      - name: Test and coverage
+        run: |
+          go test ./... -coverprofile=coverage.out -covermode=count
+          go tool cover -func=coverage.out
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $NF}' | tr -d '%')
+          if [ "$(echo "$coverage >= 80" | bc)" -ne 1 ]; then
+            echo "Coverage $coverage% is below 80%"
+            exit 1
+          fi
+      - name: Build check
+        run: go build ./cmd/mcmod

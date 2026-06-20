@@ -1,0 +1,187 @@
+{
+  "packName": "mc-mod",
+  "serverPackName": "mc-mod",
+  "minecraftVersion": "1.21.1",
+  "loaderName": [
+    "neoforge:21.1.219"
+  ],
+  "packVersion": "0.1.0",
+  "author": "orangeboyChen",
+  "mods": {
+    "farmers-delight": {
+      "name": "Farmer's Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Farmer's Delight"
+      }
+    },
+    "create": {
+      "name": "Create",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Create"
+      }
+    },
+    "create-crafts-additions": {
+      "name": "Create Crafts & Additions",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Create Crafts & Additions"
+      }
+    },
+    "brewin-and-chewin": {
+      "name": "Brewin' And Chewin'",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Brewin' And Chewin'"
+      }
+    },
+    "my-nethers-delight": {
+      "name": "My Nether's Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "My Nether's Delight"
+      }
+    },
+    "barbeques-delight": {
+      "name": "Barbeque's Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Barbeque's Delight"
+      }
+    },
+    "casualness-delight": {
+      "name": "CasualnessDelight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Casualness Delight"
+      }
+    },
+    "corn-delight": {
+      "name": "Corn Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Corn Delight"
+      }
+    },
+    "cuisine-delight": {
+      "name": "Cuisine Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Cuisine Delight"
+      }
+    },
+    "curtain": {
+      "name": "Curtain",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Curtain"
+      }
+    },
+    "ends-delight": {
+      "name": "End's Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "End's Delight"
+      }
+    },
+    "exposure": {
+      "name": "Exposure",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Exposure"
+      }
+    },
+    "kotlin-for-forge": {
+      "name": "Kotlin for Forge",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Kotlin for Forge"
+      }
+    },
+    "mysterious-mountain-lib": {
+      "name": "Mysterious Mountain Lib",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Mysterious Mountain Lib"
+      }
+    },
+    "pineapple-delight": {
+      "name": "Pineapple Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Pineapple Delight"
+      }
+    },
+    "sable": {
+      "name": "Sable",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Sable"
+      }
+    },
+    "ubes-delight": {
+      "name": "Ube's Delight",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Ube's Delight"
+      }
+    },
+    "greenhouse-config": {
+      "name": "Greenhouse Config",
+      "scope": "shared",
+      "source": {
+        "type": "github-release",
+        "repo": "GreenhouseModding/greenhouse-config",
+        "tag": "2.2.3+1.21.1",
+        "assetPattern": {
+          "neoforge": "greenhouseconfig-2.2.3+1.21.1-neoforge.jar"
+        }
+      }
+    },
+    "jei": {
+      "name": "Just Enough Items (JEI)",
+      "scope": "client",
+      "source": {
+        "type": "curseforge",
+        "query": "Just Enough Items"
+      }
+    },
+    "server-enhanced-mod": {
+      "name": "MC Server Enhanced Mod",
+      "scope": "server",
+      "source": {
+        "type": "github-release",
+        "repo": "orangeboyChen/mc-server-enhanced-mod",
+        "assetPattern": "serverenhancedmod-*.jar",
+        "tag": "*"
+      }
+    },
+    "create-aeronautics": {
+      "name": "Create Aeronautics",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "query": "Create Aeronautics",
+        "urlPattern": "https://edge.forgecdn.net/files/{fileId4}/create-aeronautics-bundled-{mcVersion}-{modVersion}.jar"
+      }
+    }
+  }
+}

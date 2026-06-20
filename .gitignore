@@ -1,0 +1,32 @@
+# File: .gitignore
+# Created: 2026-06-20
+# Description: Git ignore rules for mcmod project.
+
+# Local binaries
+mcmod
+mcmod.exe
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Cache
+.cache/
+.mcmod/
+
+# Build output
+releases/
+dist/
+
+# Coverage
+coverage.out
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
