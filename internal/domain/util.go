@@ -350,6 +350,7 @@ func NormalizeModKey(name string) string {
 	s := strings.ToLower(name)
 	s = strings.ReplaceAll(s, "'", "")
 	s = strings.ReplaceAll(s, "\u2019", "")
+	s = strings.ReplaceAll(s, "_", "-")
 	specialCharRe := regexp.MustCompile(`[^\w\s-]`)
 	dashRunRe := regexp.MustCompile(`-{2,}`)
 	s = specialCharRe.ReplaceAllString(s, "-")

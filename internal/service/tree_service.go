@@ -42,17 +42,40 @@ func BuildTree(lock *domain.PackLock) []TreeEntry {
 		}
 	}
 	var roots []TreeEntry
+	visited := make(map[string]bool)
 	for key, mod := range lock.Mods {
 		if dependent[key] {
 			continue
 		}
 		entry := treeEntry(key, mod, children, lock, make(map[string]bool))
 		roots = append(roots, entry)
+		markTreeVisited(key, children, lock, visited, make(map[string]bool))
+	}
+	for key, mod := range lock.Mods {
+		if visited[key] {
+			continue
+		}
+		roots = append(roots, treeEntry(key, mod, children, lock, make(map[string]bool)))
+		markTreeVisited(key, children, lock, visited, make(map[string]bool))
 	}
 	sort.Slice(roots, func(i, j int) bool {
 		return roots[i].Name < roots[j].Name
 	})
 	return roots
+}
+
+func markTreeVisited(key string, children map[string][]string, lock *domain.PackLock, visited, path map[string]bool) {
+	if path[key] || visited[key] {
+		return
+	}
+	path[key] = true
+	visited[key] = true
+	for _, childKey := range children[key] {
+		if _, ok := lock.Mods[childKey]; ok {
+			markTreeVisited(childKey, children, lock, visited, path)
+		}
+	}
+	delete(path, key)
 }
 
 func treeEntry(key string, mod domain.LockedMod, children map[string][]string, lock *domain.PackLock, path map[string]bool) TreeEntry {

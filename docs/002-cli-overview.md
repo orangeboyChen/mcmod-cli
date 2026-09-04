@@ -24,3 +24,11 @@ mcmod version
 `lock`, `build`, and `tree` use the packspec defaults when version or loader
 is omitted. `--project` and `--global` are compatibility flags: all key
 commands write the current project file `.mcmod/config.json`.
+
+`mcmod tree` prints resolved roots and recursively indents dependencies by two
+spaces. Cyclic components are emitted once, with recursion guarded.
+
+```text
+Create curseforge:328085 0.6.0
+  Flywheel curseforge:486392 0.6.10
+```

@@ -84,3 +84,15 @@ var _ = Describe("BuildTree empty name fallback", func() {
 		Expect(tree[0].Name).To(Equal("key-only"))
 	})
 })
+
+var _ = Describe("BuildTree cyclic components", func() {
+	It("keeps a fully cyclic component visible", func() {
+		lock := &domain.PackLock{Mods: map[string]domain.LockedMod{
+			"a": {Name: "A", Source: domain.LockedSource{Type: "local"}, Dependencies: []domain.DepRef{{ID: "b"}}},
+			"b": {Name: "B", Source: domain.LockedSource{Type: "local"}, Dependencies: []domain.DepRef{{ID: "a"}}},
+		}}
+		roots := BuildTree(lock)
+		Expect(roots).To(HaveLen(1))
+		Expect(FormatTree(roots)).To(ContainSubstring("A local"))
+	})
+})

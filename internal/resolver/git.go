@@ -33,6 +33,9 @@ func ResolveGitPackage(repo, mcVersion, loader string) (*domain.PackSpec, error)
 			continue
 		}
 		resp.Body.Close()
+		if err := domain.ValidateSpec(spec); err != nil {
+			return nil, fmt.Errorf("git: invalid packspec.json from %s: %w", repo, err)
+		}
 		return &spec, nil
 	}
 	return nil, fmt.Errorf("git: failed to read packspec.json from %s", repo)
@@ -73,11 +76,12 @@ func expandGitMod(result map[string]domain.ModSpec, key string, mod domain.ModSp
 	if mod.Source.Repo == "" {
 		return fmt.Errorf("git: mod %q has empty repository", key)
 	}
-	if stack[mod.Source.Repo] {
+	repoID := canonicalRepoID(mod.Source.Repo)
+	if stack[repoID] {
 		return fmt.Errorf("git: recursive packspec cycle detected at %s", mod.Source.Repo)
 	}
-	stack[mod.Source.Repo] = true
-	defer delete(stack, mod.Source.Repo)
+	stack[repoID] = true
+	defer delete(stack, repoID)
 
 	childSpec, err := ResolveGitPackage(mod.Source.Repo, mcVersion, loader)
 	if err != nil {
@@ -86,7 +90,7 @@ func expandGitMod(result map[string]domain.ModSpec, key string, mod domain.ModSp
 	if len(childSpec.LoaderName) > 0 && !loaderMatches(childSpec.LoaderName, loader) {
 		return fmt.Errorf("git: packspec %s does not support loader %q", mod.Source.Repo, loader)
 	}
-	repoPrefix := domain.NormalizeModKey(strings.ReplaceAll(mod.Source.Repo, "/", "-"))
+	repoPrefix := domain.NormalizeModKey(strings.ReplaceAll(repoID, "/", "-"))
 	if prefix != "" {
 		repoPrefix = prefix + "-" + repoPrefix
 	}
@@ -102,6 +106,10 @@ func expandGitMod(result map[string]domain.ModSpec, key string, mod domain.ModSp
 		}
 	}
 	return nil
+}
+
+func canonicalRepoID(repo string) string {
+	return strings.ToLower(strings.TrimSpace(repo))
 }
 
 func collectMods(spec domain.PackSpec) map[string]domain.ModSpec {
