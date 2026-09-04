@@ -60,6 +60,17 @@ var _ = Describe("FormatTree", func() {
 		Expect(out).To(ContainSubstring("mod-b"))
 		Expect(out).To(ContainSubstring("owner/repo@v1"))
 	})
+	It("renders nested lock dependencies recursively", func() {
+		lock := &domain.PackLock{Mods: map[string]domain.LockedMod{
+			"a": {Name: "A", Source: domain.LockedSource{Type: "local"}, Dependencies: []domain.DepRef{{ID: "b", Required: true}}},
+			"b": {Name: "B", Source: domain.LockedSource{Type: "local"}, Dependencies: []domain.DepRef{{ID: "c", Required: true}}},
+			"c": {Name: "C", Source: domain.LockedSource{Type: "local"}},
+		}}
+		out := FormatTree(BuildTree(lock))
+		Expect(out).To(ContainSubstring("A local"))
+		Expect(out).To(ContainSubstring("  B local"))
+		Expect(out).To(ContainSubstring("    C local"))
+	})
 })
 
 var _ = Describe("BuildTree empty name fallback", func() {

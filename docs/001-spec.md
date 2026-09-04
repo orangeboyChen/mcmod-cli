@@ -68,6 +68,9 @@ Set `MCMOD_CURSEFORGE_USE_DOWNLOAD_URL=1` to opt into the rate-limited
 ### Git Source
 - `type: "git"`
 - `repo` (string, required): `"owner/name"`.
+- The repository must expose `packspec.json` at the root of its `main` or
+  `master` branch. `mcmod lock` recursively expands nested Git sources and
+  resolves the resulting non-Git mods.
 
 ### Local Source
 - `type: "local"`

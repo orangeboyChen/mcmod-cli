@@ -1,26 +1,26 @@
 <!--
 File: docs/005-source-resolution.md
-Created: 2026-06-20
-Description: Source resolution for CurseForge, GitHub, Git, and local files.
+Created: 2026-09-04
+Description: Source resolution and git packspec bundles.
 -->
+
 # Source Resolution
 
-## CurseForge
-- API base: `https://api.curseforge.com/v1`
-- Resolves by query or mod ID + file ID
-- Requires API key (env, project, or user config)
-- Default download URL: `https://edge.forgecdn.net/files/{fileId4}/{fileName}`
-- Set `MCMOD_CURSEFORGE_USE_DOWNLOAD_URL=1` to use the API download-url endpoint
+## Git packspec bundles
 
-## GitHub Release
-- Resolves by repo, tag, and asset pattern
-- Supports `{mcVersion}`, `{tag}`, `{loader}` placeholders
-- Supports `*` wildcard matching for tags and patterns
+`type: "git"` points to a GitHub repository containing `packspec.json` at
+the root of either the `main` or `master` branch:
 
-## Git
-- Reads `packspec.json` from remote repos via raw.githubusercontent.com
-- Supports "main" and "master" branches
+```json
+{"name":"shared-bundle","source":{"type":"git","repo":"owner/shared-bundle"},"scope":"server"}
+```
 
-## Local
-- Resolves local `.jar` files by path
-- Supports `{mcVersion}` and `{loader}` placeholder substitution
+The repository is expanded recursively during `mcmod lock`. Its child mods
+are resolved normally; the Git repository itself is not downloaded as a jar.
+
+## Other sources
+
+- `curseforge`: resolve by query or slug and select a file for Minecraft and loader.
+- `github-release`: resolve a release tag and matching asset pattern.
+- `local`: resolve a local jar path with `{mcVersion}` and `{loader}` placeholders.
+- `url`: download an operator-supplied URL using the explicit cache identity.

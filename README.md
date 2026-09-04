@@ -18,7 +18,8 @@ it into per-loader lock files, signed zips, and a release index.
 - `packspec.json` as the only human-edited input
 - Loaders: **NeoForge** and **Fabric** (mod-level loader filter supported)
 - Sources: **CurseForge** (query), **GitHub Release** (tag + assetPattern),
-  **Git** (downstream mcmod package), **Local** (template path)
+  **Git packspec bundles** (recursive `packspec.json`), **Local** (template path),
+  and **URL** (operator-supplied download)
 - `mcmod lock` resolves sources, runs an incremental `kept / added / removed
   / failed` reconciliation against the existing lock, and writes
   `locks/dependencies/<mcVersion>-<loader>.json`
@@ -64,6 +65,26 @@ mcmod lock 1.21.1 neoforge
 # 4. Build client + server zips
 mcmod build 1.21.1 neoforge
 ```
+
+### Recursive Git packspecs
+
+Use a Git source when a repository publishes a reusable `packspec.json`:
+
+```json
+{
+  "mods": {
+    "shared-bundle": {
+      "scope": "shared",
+      "source": { "type": "git", "repo": "owner/shared-bundle" }
+    }
+  }
+}
+```
+
+`mcmod lock` expands nested Git bundles, filters each bundle by loader, and
+resolves the resulting non-Git mods. Expanded keys are repository-namespaced
+in the lock file and are never written back to the root spec. Git repositories
+are packspec inputs, not jar downloads.
 
 Outputs land in `locks/dependencies/1.21.1-neoforge.json` and
 `releases/v0.1.0/my-pack-1.21.1-neoforge-21.1.219-{client,server}.zip`.

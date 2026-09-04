@@ -1,35 +1,23 @@
 <!--
 File: docs/003-lock-files.md
-Created: 2026-06-20
-Description: Dependency lock file format.
+Created: 2026-09-04
+Description: Dependency lock format and recursive expansion output.
 -->
+
 # Lock Files
 
-## Location
-`locks/dependencies/<minecraftVersion>-<loader>.json`
+Lock files live at `locks/dependencies/<minecraftVersion>-<loader>.json`.
 
-## Schema
-- `loader` (string): Loader name
-- `loaderVersion` (string, optional): Loader version
-- `minecraftVersion` (string): Minecraft version
-- `mods` (object): Locked mod entries keyed by normalized ID
+The `mods` map contains the complete resolved set, including mods discovered
+inside recursive Git packspec bundles. Expanded keys are namespaced and are
+not added to the root `packspec.json`.
 
-## LockedMod
-- `name` (string, optional): Display name
-- `version` (string, optional): Resolved version
-- `scope` (string): "shared", "client", or "server"
-- `identity` (object, optional): Identity info
-- `dependencies` (array): Dependency references
-- `source` (object): Locked source details
+Each entry contains `name`, `scope`, `source`, optional `identity`, and a
+fingerprint `hash`. `dependencies` is reserved for dependency references
+reported by resolved artifacts; Git packspec expansion is represented by the
+flattened entries and their source metadata.
 
-## LockedSource
-- `type` (string): One of "curseforge", "github-release", "git", "local"
-- The remaining fields depend on `type`. See docs/005-source-resolution.md
-  for the per-type schema.
-
-## Lock Run Summary
-The `mcmod lock` command does NOT write per-failure or per-removal records
-into the lock file itself. Instead, the run summary (added/kept/removed/failed
-counts and per-failure details) is written to stderr so the lock file
-stays a clean source of truth that matches this schema. The CLI is
-responsible for surfacing partial failures to the operator.
+Run `mcmod lock 1.21.1 neoforge` to regenerate the file. Incremental locking
+keeps matching entries and removes entries no longer present after expansion.
+Run summaries and failures are written to stderr; the JSON remains a clean
+source of truth.

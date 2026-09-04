@@ -24,24 +24,54 @@ type TreeEntry struct {
 
 // BuildTree builds a dependency tree for display.
 func BuildTree(lock *domain.PackLock) []TreeEntry {
+	if lock == nil {
+		return nil
+	}
+	children := make(map[string][]string)
+	for key, mod := range lock.Mods {
+		for _, dep := range mod.Dependencies {
+			if _, ok := lock.Mods[dep.ID]; ok {
+				children[key] = append(children[key], dep.ID)
+			}
+		}
+	}
+	dependent := make(map[string]bool)
+	for _, deps := range children {
+		for _, dep := range deps {
+			dependent[dep] = true
+		}
+	}
 	var roots []TreeEntry
 	for key, mod := range lock.Mods {
-		entry := TreeEntry{
-			Name:        mod.Name,
-			Version:     mod.Version,
-			Scope:       mod.Scope,
-			Source:      mod.Source.Type,
-			SourceIdent: treeSourceIdent(mod.Source),
+		if dependent[key] {
+			continue
 		}
-		if entry.Name == "" {
-			entry.Name = key
-		}
+		entry := treeEntry(key, mod, children, lock, make(map[string]bool))
 		roots = append(roots, entry)
 	}
 	sort.Slice(roots, func(i, j int) bool {
 		return roots[i].Name < roots[j].Name
 	})
 	return roots
+}
+
+func treeEntry(key string, mod domain.LockedMod, children map[string][]string, lock *domain.PackLock, path map[string]bool) TreeEntry {
+	entry := TreeEntry{Name: mod.Name, Version: mod.Version, Scope: mod.Scope, Source: mod.Source.Type, SourceIdent: treeSourceIdent(mod.Source)}
+	if entry.Name == "" {
+		entry.Name = key
+	}
+	if path[key] {
+		return entry
+	}
+	path[key] = true
+	defer delete(path, key)
+	for _, childKey := range children[key] {
+		if child, ok := lock.Mods[childKey]; ok {
+			entry.Children = append(entry.Children, treeEntry(childKey, child, children, lock, path))
+		}
+	}
+	sort.Slice(entry.Children, func(i, j int) bool { return entry.Children[i].Name < entry.Children[j].Name })
+	return entry
 }
 
 // treeSourceIdent returns a human-readable source identifier per spec 7.3
@@ -70,15 +100,18 @@ func treeSourceIdent(src domain.LockedSource) string {
 func FormatTree(roots []TreeEntry) string {
 	var b strings.Builder
 	for _, r := range roots {
-		b.WriteString(formatTreeLine(r))
-		b.WriteString("\n")
-		for _, c := range r.Children {
-			b.WriteString("  ")
-			b.WriteString(formatTreeLine(c))
-			b.WriteString("\n")
-		}
+		formatTreeNode(&b, r, 0)
 	}
 	return b.String()
+}
+
+func formatTreeNode(b *strings.Builder, entry TreeEntry, depth int) {
+	b.WriteString(strings.Repeat("  ", depth))
+	b.WriteString(formatTreeLine(entry))
+	b.WriteString("\n")
+	for _, child := range entry.Children {
+		formatTreeNode(b, child, depth+1)
+	}
 }
 
 // formatTreeLine renders a single tree node as "<name> <source:identifier> <version>".
