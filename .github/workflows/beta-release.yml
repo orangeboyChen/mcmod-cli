@@ -46,6 +46,7 @@ jobs:
           releases="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases")"
           latest_stable="$(jq -r '.[] | select(.draft == false and .prerelease == false) | .tag_name' <<< "$releases" | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)"
           latest_canary="$(jq -r '.[] | select(.draft == false and .prerelease == true) | .tag_name' <<< "$releases" | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$' | sort -V | tail -n 1 || true)"
+          canary_base=false
           if [ -n "$BASE_VERSION" ]; then
             [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "base_version must be x.y.z" >&2; exit 1; }
             base="$BASE_VERSION"
@@ -56,14 +57,17 @@ jobs:
             base="${latest_canary%-canary.*}"
             canary="${latest_canary##*.}"
             stable_exists="$(jq -r --arg tag "v$base" '.[] | select(.draft == false and .prerelease == false and .tag_name == $tag) | .tag_name' <<< "$releases")"
+            if [ -z "$stable_exists" ]; then
+              canary_base=true
+            fi
           else
             base="${latest_stable:-0.0.0}"
             canary=0
             stable_exists=present
           fi
-          if [ "${canary_base:-false}" = true ] && [ -n "$canary" ]; then
+          if [ "$canary_base" = true ] && [ -n "$canary" ]; then
             next="$base-canary.$((canary + 1))"
-          elif [ "${canary_base:-false}" = true ]; then
+          elif [ "$canary_base" = true ]; then
             next="$base-canary.1"
           else
             IFS=. read -r major minor patch <<< "$base"

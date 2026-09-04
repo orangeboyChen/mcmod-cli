@@ -20,6 +20,21 @@ permissions:
   contents: write
 
 jobs:
+  checks:
+    name: Validate source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Run tests
+        run: go test ./...
+      - name: Build command entrypoints
+        run: go build ./cmd/mcm ./cmd/mcmod
+
   build:
     name: ${{ matrix.platform }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
@@ -65,21 +80,29 @@ jobs:
       - name: Package Unix binary
         if: matrix.archive == 'tar.gz'
         shell: bash
-        run: tar -czf mcm-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz mcm
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          tar -czf "mcmod_cli_${version}_${{ matrix.platform }}_${{ matrix.arch }}.tar.gz" mcm
       - name: Package Windows binary
         if: matrix.archive == 'zip'
         shell: pwsh
-        run: Compress-Archive -Path mcm.exe -DestinationPath mcm-windows-amd64.zip
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          Compress-Archive -Path mcm.exe -DestinationPath "mcmod_cli_${version}_windows_amd64.zip"
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mcm-${{ matrix.platform }}-${{ matrix.arch }}
-          path: mcm-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive }}
+          name: mcmod_cli_${{ inputs.tag }}_${{ matrix.platform }}_${{ matrix.arch }}
+          path: mcmod_cli_*_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.archive }}
           if-no-files-found: error
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [checks, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +129,16 @@ jobs:
             fi
             echo
             echo "## Assets"
+            version="${TAG#v}"
             find dist -maxdepth 1 -type f -printf '%f\n' | sort | sed 's/^/- `/' | sed 's/$/`/'
           } > release-notes.md
+      - name: Create checksums
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          (cd dist && sha256sum mcmod_cli_*_*.tar.gz mcmod_cli_*_*.zip > "mcmod_cli_${version}_checksums.txt")
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

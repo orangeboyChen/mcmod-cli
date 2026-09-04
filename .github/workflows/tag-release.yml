@@ -39,3 +39,9 @@ jobs:
           git tag -a "$tag" -m "Release $tag"
           git push origin "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: tag
+    uses: ./.github/workflows/build-release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+      prerelease: false
