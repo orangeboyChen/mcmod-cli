@@ -6,9 +6,10 @@ package cli
 
 import (
 	"bytes"
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"os"
 )
 
 var _ = Describe("Run() exits non-zero on error", func() {

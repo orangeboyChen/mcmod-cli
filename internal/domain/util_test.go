@@ -210,6 +210,10 @@ var _ = Describe("Mod collection helpers", func() {
 		got := ExpandURLPattern("files/{fileId4}/{fileName}", 1, 8240058, "m.jar", "1.0", "1.21.1")
 		Expect(got).To(Equal("files/8240/58/m.jar"))
 	})
+
+	It("DefaultCurseForgeURL produces the standard edge CDN path", func() {
+		Expect(DefaultCurseForgeURL(8263584, "sable-neoforge-1.21.1-2.0.3.jar")).To(Equal("https://edge.forgecdn.net/files/8263/584/sable-neoforge-1.21.1-2.0.3.jar"))
+	})
 })
 
 var _ = Describe("EntryIndex and AllEntries via Variants", func() {
@@ -235,5 +239,90 @@ var _ = Describe("EntryIndex and AllEntries via Variants", func() {
 		}
 		entries := AllEntries(spec)
 		Expect(entries).To(HaveLen(2))
+	})
+})
+
+var _ = Describe("AllMods and AllModsForVariant branches", func() {
+	It("AllMods returns mods from spec.Mods", func() {
+		spec := PackSpec{
+			Mods: map[string]ModSpec{
+				"a": {Name: "A"},
+				"b": {Name: "B"},
+			},
+		}
+		mods := AllMods(spec)
+		Expect(mods).To(HaveLen(2))
+	})
+
+	It("AllMods falls back to variants when Mods is empty", func() {
+		spec := PackSpec{
+			Variants: map[string]PackVariantSpec{
+				"v1": {LoaderName: []string{"neoforge"}, Mods: []ModSpec{{Name: "x"}, {Name: "y"}}},
+			},
+		}
+		mods := AllMods(spec)
+		Expect(mods).To(HaveLen(2))
+	})
+
+	It("AllModsForVariant returns main mods and dependencies", func() {
+		spec := PackSpec{
+			Mods:         map[string]ModSpec{"a": {Name: "A"}},
+			Dependencies: []ModSpec{{Name: "D"}},
+		}
+		mods := AllModsForVariant(spec, "v1")
+		Expect(len(mods)).To(BeNumerically(">=", 1))
+	})
+
+	It("AllModsForVariant returns nil for unknown variant", func() {
+		spec := PackSpec{}
+		Expect(AllModsForVariant(spec, "v1")).To(BeNil())
+	})
+
+	It("SetMods normalizes keys and falls back to Name when key is empty", func() {
+		mods := []ModSpec{{Name: "Farmer's Delight"}, {Name: ""}}
+		spec := SetMods(PackSpec{}, mods)
+		Expect(spec.Mods).To(HaveKey("farmers-delight"))
+	})
+
+	It("SetModsForScope sets scope on each mod in the unified map", func() {
+		spec := SetModsForScope(PackSpec{}, ScopeClient, []ModSpec{{Name: "B"}})
+		Expect(spec.Mods).To(HaveKey("b"))
+		Expect(spec.Mods["b"].Scope).To(Equal(ScopeClient))
+	})
+
+	It("ModsForScope returns empty slice for unknown scope", func() {
+		spec := PackSpec{}
+		Expect(ModsForScope(spec, "unknown")).To(BeEmpty())
+	})
+
+	It("FileNameForURL extracts last segment", func() {
+		Expect(FileNameForURL("https://example.com/path/file.jar", "")).To(Equal("file.jar"))
+	})
+
+	It("FileNameForURL with empty input returns fallback", func() {
+		Expect(FileNameForURL("", "fallback")).To(Equal("fallback"))
+	})
+})
+
+var _ = Describe("EntryIndex and entriesByMod", func() {
+	It("EntryIndex returns entry from entriesByMod when present", func() {
+		spec := PackSpec{}
+		spec = SetEntriesForMod(spec, "k", []EntrySpec{{Name: "k"}})
+		e, ok := EntryIndex(spec, "k")
+		Expect(ok).To(BeTrue())
+		Expect(e.Name).To(Equal("k"))
+	})
+
+	It("EntryIndex returns false when no match", func() {
+		spec := PackSpec{Mods: map[string]ModSpec{"x": {Name: "x"}}}
+		_, ok := EntryIndex(spec, "missing")
+		Expect(ok).To(BeFalse())
+	})
+
+	It("modMapFromSlice handles duplicates by keeping last", func() {
+		mods := []ModSpec{{Name: "A", Scope: ScopeShared}, {Name: "A", Scope: ScopeClient}}
+		m := modMapFromSlice(mods)
+		Expect(m).To(HaveLen(1))
+		Expect(m["a"].Scope).To(Equal(ScopeClient))
 	})
 })

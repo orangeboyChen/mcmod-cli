@@ -5,12 +5,14 @@
 package service
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"os"
 	"path/filepath"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"encoding/json"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -133,7 +135,7 @@ var _ = Describe("Service additional build coverage", func() {
 				"a": {Name: "A", Scope: "shared", Source: domain.ModSource{Type: "local", Path: "./a.jar"}},
 			},
 		}
-		lock, err := BuildLock(spec, "1.21.1", "neoforge")
+		lock, _, err := BuildLock(spec, "1.21.1", "neoforge")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(lock.Mods).To(HaveKey("a"))
 	})
@@ -143,7 +145,7 @@ var _ = Describe("Service additional build coverage", func() {
 			PackName: "p", PackVersion: "0.6.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
 		}
-		lock, err := BuildLock(spec, "1.21.1", "neoforge")
+		lock, _, err := BuildLock(spec, "1.21.1", "neoforge")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(lock.Mods).To(BeEmpty())
 	})
@@ -526,5 +528,172 @@ var _ = Describe("buildOneArtifactWith force=false and artifact-exists path", fu
 		Expect(BuildArtifactWith(spec, lock, "1.21.1", "client", true)).To(Succeed())
 		// Second build with force=false should fail because the file exists.
 		Expect(BuildArtifactWith(spec, lock, "1.21.1", "client", false)).NotTo(Succeed())
+	})
+})
+
+var _ = Describe("BuildArtifactAndReturnPath both", func() {
+	It("returns the both zip path after building client+server", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		jar := filepath.Join(dir, "mod.jar")
+		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+
+		lock := &domain.PackLock{
+			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: jar, FileName: "mod.jar"}, Hash: "x"},
+			},
+		}
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21"},
+		}
+		path, err := BuildArtifactAndReturnPath(spec, lock, "1.21.1", "both", true)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(path).To(ContainSubstring("both"))
+	})
+})
+
+var _ = Describe("BuildArtifactWith incomplete mod resolution", func() {
+	It("rejects a lock that does not cover every spec mod", func() {
+		spec := &domain.PackSpec{Mods: map[string]domain.ModSpec{
+			"present": {},
+			"missing": {},
+		}}
+		lock := &domain.PackLock{MinecraftVersion: "1.21.1", Loader: "neoforge", Mods: map[string]domain.LockedMod{
+			"present": {},
+		}}
+		err := ValidateBuildLock(spec, lock, "client")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("missing"))
+	})
+
+	It("aborts when one mod has a missing jar", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		jar := filepath.Join(dir, "real.jar")
+		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+
+		lock := &domain.PackLock{
+			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"good": {Name: "Good", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: jar, FileName: "real.jar"}, Hash: "x"},
+				"bad":  {Name: "Bad", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: "/no/such.jar", FileName: "missing.jar"}},
+			},
+		}
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21"},
+			Mods: map[string]domain.ModSpec{
+				"good": {Name: "Good", Scope: "shared", Source: domain.ModSource{Type: "local", Path: jar}},
+				"bad":  {Name: "Bad", Scope: "shared", Source: domain.ModSource{Type: "local", Path: "/no/such.jar"}},
+			},
+		}
+		// A build must not produce a partial artifact.
+		err := BuildArtifactWith(spec, lock, "1.21.1", "client", true)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("resolve mod bad"))
+	})
+})
+
+var _ = Describe("BuildArtifactAndReturnPath both error paths", func() {
+	It("returns the both zip path when target=both succeeds", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		jar := filepath.Join(dir, "mod.jar")
+		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+
+		lock := &domain.PackLock{
+			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: jar, FileName: "mod.jar"}, Hash: "x"},
+			},
+		}
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21"},
+		}
+		path, err := BuildArtifactAndReturnPath(spec, lock, "1.21.1", "both", true)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(path).To(ContainSubstring("both"))
+	})
+
+	It("errors when target=both has client build failure", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		// Empty lock so buildOneArtifactWith will fail with "no mods".
+		lock := &domain.PackLock{
+			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{},
+		}
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21"},
+		}
+		_, err := BuildArtifactAndReturnPath(spec, lock, "1.21.1", "both", true)
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("BuildClientServerBuild with client/server failure", func() {
+	It("returns error when client build fails", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		// Create a lock file but with no mods so BuildArtifact will fail.
+		lockDir := filepath.Join(dir, "locks", "dependencies")
+		Expect(os.MkdirAll(lockDir, 0755)).To(Succeed())
+		lock := domain.PackLock{
+			MinecraftVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "21.0.0",
+			Mods: map[string]domain.LockedMod{},
+		}
+		data, _ := json.MarshalIndent(lock, "", "  ")
+		Expect(os.WriteFile(filepath.Join(lockDir, "1.21.1-neoforge.json"), data, 0644)).To(Succeed())
+
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21.0.0"},
+		}
+		err := BuildClientServerBuild(spec, "1.21.1")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("client"))
+	})
+})
+
+var _ = Describe("BuildArtifactWith with target=both", func() {
+	It("BuildArtifactWith with target=both produces both zips", func() {
+		dir := GinkgoT().TempDir()
+		wd, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Chdir(wd) })
+
+		jar := filepath.Join(dir, "mod.jar")
+		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+
+		lock := &domain.PackLock{
+			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: jar, FileName: "mod.jar"}, Hash: "x"},
+			},
+		}
+		spec := &domain.PackSpec{
+			PackName: "p", MinecraftVersion: "1.21.1",
+			LoaderName: []string{"neoforge:21"},
+		}
+		Expect(BuildArtifactWith(spec, lock, "1.21.1", "both", true)).To(Succeed())
 	})
 })

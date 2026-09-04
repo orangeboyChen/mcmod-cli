@@ -29,6 +29,16 @@ func GitCachePath(owner, repo string) string {
 	return filepath.Join(CacheDir, "git", "github", owner, repo)
 }
 
+// ResolvedIDPath returns the cache path for the resolved-id cache written
+// by `mcmod lock` after a successful resolver run. The cache maps mod keys
+// to the (modId, fileId) pair CurseForge returned for them, so the next
+// lock run can skip the search step and verify-by-id directly. Stale
+// entries are tolerable because lock re-validates the file via CF before
+// trusting it.
+func ResolvedIDPath(mcVersion, loader string) string {
+	return filepath.Join(CacheDir, "resolved", fmt.Sprintf("%s-%s.json", mcVersion, loader))
+}
+
 // CheckCurseForge checks if a CurseForge file is cached and valid.
 func CheckCurseForge(modID, fileID, fileName string) (bool, int64, error) {
 	path := CurseForgePath(modID, fileID, fileName)

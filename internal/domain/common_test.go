@@ -32,6 +32,10 @@ var _ = Describe("Common constants and value types", func() {
 		Expect(TargetBoth).To(Equal("both"))
 	})
 
+	It("Version constant is non-empty", func() {
+		Expect(Version).NotTo(BeEmpty())
+	})
+
 	It("BuildTarget is a string-typed alias", func() {
 		var t BuildTarget = "client"
 		Expect(string(t)).To(Equal("client"))

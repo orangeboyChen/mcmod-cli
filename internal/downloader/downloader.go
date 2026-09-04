@@ -35,17 +35,24 @@ func Download(src *domain.LockedSource, label string) error {
 }
 
 func dlCurseForge(src *domain.LockedSource, label string) error {
-	// Prefer the CDN downloadUrl carried in the lock entry. The CF file
-	// detail endpoint (/v1/mods/{id}/files/{fileId}) returns a CDN URL
-	// inline; using it skips the heavily rate-limited /download-url endpoint
-	// entirely and goes straight to edge.forgecdn.net which has no key
-	// requirement and no hourly cap.
-	if src.URL != "" {
-		return downloadCFToCache(src, src.URL, label)
+	// The standard ForgeCDN URL avoids the heavily rate-limited API endpoint.
+	// Set MCMOD_CURSEFORGE_USE_DOWNLOAD_URL to opt into the API fallback.
+	if !useCurseForgeDownloadURL() {
+		downloadURL := src.URL
+		if downloadURL == "" && src.ModID != 0 && src.FileID != 0 && src.FileName != "" {
+			downloadURL = domain.DefaultCurseForgeURL(src.FileID, src.FileName)
+		}
+		if downloadURL != "" {
+			return downloadCFToCache(src, downloadURL, label)
+		}
 	}
-	// Fallback: lock entry predates the CDN-URL carryover (or was written
-	// by a caller that did not fill src.URL). Hit the /download-url
-	// endpoint to get one.
+	// Explicitly enabled fallback: obtain the URL from CurseForge.
+	if src.ModID == 0 || src.FileID == 0 {
+		if src.URL != "" {
+			return downloadCFToCache(src, src.URL, label)
+		}
+		return fmt.Errorf("curseforge source missing modId/fileId")
+	}
 	key := config.GetCFKey()
 	url := fmt.Sprintf("https://api.curseforge.com/v1/mods/%d/files/%d/download-url", src.ModID, src.FileID)
 	req, _ := http.NewRequest("GET", url, nil)
@@ -73,6 +80,15 @@ func dlCurseForge(src *domain.LockedSource, label string) error {
 		return err
 	}
 	return downloadCFToCache(src, downloadURL, label)
+}
+
+func useCurseForgeDownloadURL() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("MCMOD_CURSEFORGE_USE_DOWNLOAD_URL"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // downloadCFToCache streams a file from the given URL into the .cache

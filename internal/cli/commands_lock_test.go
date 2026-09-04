@@ -6,10 +6,13 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
-	"os"
 )
 
 var _ = Describe("lock", func() {
@@ -168,6 +171,87 @@ var _ = Describe("lock update", func() {
 		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a", "--version", "9")
 		Expect(err).NotTo(HaveOccurred())
 	})
+
+	It("lock update with key updates name and scope", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "local", FileName: "a.jar"}},
+			},
+		})
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a", "--name", "AA", "--scope", "client")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("lock update with --source overwrites source via buildLockedSource", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "local", FileName: "a.jar"}},
+			},
+		})
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a",
+			"--source", "github-release", "--repo", "o/r", "--tag", "v1", "--asset-name", "gh.jar", "--file-name", "gh.jar")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("lock update with --source and missing required field errors", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "local", FileName: "a.jar"}},
+			},
+		})
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a", "--source", "local")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("lock update per-field source update for file-name/repo/tag/asset/path", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "github-release", Repo: "o/r", Tag: "v1", AssetName: "old.jar", FileName: "old.jar"}},
+			},
+		})
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a",
+			"--file-name", "new.jar", "--tag", "v2", "--asset-name", "new.jar", "--path", "p.jar")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("lock update per-field source update for mod-id and file-id", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "curseforge", ModID: 0, FileID: 0, FileName: "old.jar"}},
+			},
+		})
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a", "--mod-id", "123", "--file-id", "456", "--repo", "o/r")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("lock update per-field source ignores non-numeric mod-id/file-id", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"a": {Name: "A", Version: "1", Scope: "shared", Source: domain.LockedSource{Type: "curseforge", ModID: 1, FileID: 2, FileName: "a.jar"}},
+			},
+		})
+		// non-numeric Sscanf fails -> unchanged
+		_, _, err := runCLI("lock", "update", "1.21.1", "neoforge", "a", "--mod-id", "abc")
+		Expect(err).NotTo(HaveOccurred())
+	})
 })
 
 var _ = Describe("lock delete", func() {
@@ -209,6 +293,24 @@ var _ = Describe("lock delete", func() {
 		chdirTemp("")
 		_, _, err := runCLI("lock", "delete", "1.21.1")
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("lock delete with mc+loader removes existing file", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1", Mods: map[string]domain.LockedMod{}})
+		_, _, err := runCLI("lock", "delete", "1.21.1", "neoforge")
+		Expect(err).NotTo(HaveOccurred())
+		_, err = os.Stat(filepath.Join(dir, "locks", "dependencies", "1.21.1-neoforge.json"))
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("lock delete without args uses spec defaults and removes files", func() {
+		dir := chdirTemp(`{"packName":"l","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		ensureLocksDir(dir)
+		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1", Mods: map[string]domain.LockedMod{}})
+		_, _, err := runCLI("lock", "delete")
+		Expect(err).NotTo(HaveOccurred())
 	})
 })
 

@@ -28,6 +28,10 @@ var _ = Describe("Service treeSourceIdent", func() {
 		id := treeSourceIdent(domain.LockedSource{Type: "wat"})
 		Expect(id).To(Equal("wat"))
 	})
+	It("git returns repo", func() {
+		id := treeSourceIdent(domain.LockedSource{Type: "git", Repo: "o/r"})
+		Expect(id).To(Equal("git:o/r"))
+	})
 })
 
 var _ = Describe("BuildTree FormatTree", func() {
@@ -55,5 +59,17 @@ var _ = Describe("FormatTree", func() {
 		Expect(out).To(ContainSubstring("mod-a"))
 		Expect(out).To(ContainSubstring("mod-b"))
 		Expect(out).To(ContainSubstring("owner/repo@v1"))
+	})
+})
+
+var _ = Describe("BuildTree empty name fallback", func() {
+	It("uses the lock key when Name is empty", func() {
+		lock := &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]domain.LockedMod{
+				"key-only": {Name: "", Version: "1.0", Scope: "shared", Source: domain.LockedSource{Type: "local"}},
+			}}
+		tree := BuildTree(lock)
+		Expect(tree).To(HaveLen(1))
+		Expect(tree[0].Name).To(Equal("key-only"))
 	})
 })

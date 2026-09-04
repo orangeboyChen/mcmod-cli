@@ -5,9 +5,10 @@
 package cli
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"os"
 )
 
 var _ = Describe("release set", func() {
@@ -75,6 +76,26 @@ var _ = Describe("release list/show/delete", func() {
 		Expect(err).NotTo(HaveOccurred())
 		_, _, err = runCLI("lock", "release", "delete", "1.21.1", "9.9.9")
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("release delete single artifact server target", func() {
+		chdirTemp(`{"packName":"p","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		_, _, err := runCLI("lock", "release", "set", "1.21.1", "neoforge",
+			"--version", "0.1.0", "--repo", "o/r", "--tag", "v0.1.0",
+			"--artifact-client", "c.jar", "--artifact-server", "s.jar")
+		Expect(err).NotTo(HaveOccurred())
+		_, _, err = runCLI("lock", "release", "delete", "1.21.1", "0.1.0", "neoforge", "--target", "server")
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("release delete loader-specific both target removes both artifacts", func() {
+		chdirTemp(`{"packName":"p","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
+		_, _, err := runCLI("lock", "release", "set", "1.21.1", "neoforge",
+			"--version", "0.1.0", "--repo", "o/r", "--tag", "v0.1.0",
+			"--artifact-client", "c.jar", "--artifact-server", "s.jar")
+		Expect(err).NotTo(HaveOccurred())
+		_, _, err = runCLI("lock", "release", "delete", "1.21.1", "0.1.0", "neoforge", "--target", "both")
+		Expect(err).NotTo(HaveOccurred())
 	})
 })
 

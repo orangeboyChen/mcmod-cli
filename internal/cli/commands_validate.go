@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/spf13/cobra"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
 func newValidateCmd() *cobra.Command {

@@ -164,14 +164,12 @@ func ResolveCurseForgeByID(modID, fileID int, modKey ...string) (*domain.LockedS
 		return nil, fmt.Errorf("decode failed: %w", err)
 	}
 
-	// Prefer the CDN downloadUrl returned in the same response: it skips the
-	// heavily rate-limited /download-url endpoint and goes straight to
-	// edge.forgecdn.net which has no API key requirement and no hourly cap.
-	ls := &domain.LockedSource{Type: "curseforge", ModID: modID, FileID: fileID, FileName: r.Data.FileName}
-	if r.Data.DownloadURL != "" {
-		ls.URL = r.Data.DownloadURL
-	}
-	return ls, nil
+	return &domain.LockedSource{
+		Type:     "curseforge",
+		ModID:    modID,
+		FileID:   fileID,
+		FileName: r.Data.FileName,
+	}, nil
 }
 
 // ResolveCurseForgeBySlug looks up a mod by its exact CF slug, then picks the

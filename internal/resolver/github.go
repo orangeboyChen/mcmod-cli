@@ -7,11 +7,12 @@ package resolver
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/orangeboyChen/mcmod-cli/internal/domain"
-	"github.com/orangeboyChen/mcmod-cli/internal/netutil"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/domain"
+	"github.com/orangeboyChen/mcmod-cli/internal/netutil"
 )
 
 // GHAPI is the GitHub API base URL.

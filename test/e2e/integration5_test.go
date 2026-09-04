@@ -1,4 +1,4 @@
-// File: test/integration5_test.go
+// File: test/e2e/integration5_test.go
 // Created: 2026-06-20
 // Description: Additional integration tests for tree resolution output,
 // lock subcommand path coverage, and validate edge cases.
@@ -13,6 +13,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -40,7 +41,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 	// ============== M01: tree with version resolution info ==============
 	Describe("M01: tree output details", func() {
 		It("M01-1: tree output shows version for each mod", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			// The example lock has create@6.0.0, jei@19.21.0.247, server-enhanced@1.4.2
@@ -49,7 +50,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(stdout).To(ContainSubstring("1.4.2"))
 		})
 		It("M01-2: tree output groups mod lines by source type", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			// Per spec 7.3 example: <name> <source:identifier> <version>
@@ -57,7 +58,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(stdout).To(ContainSubstring("github:orangeboyChen/mc-server-enhanced-mod"))
 		})
 		It("M01-3: tree output shows source:identifier per mod", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			// Each mod has a source identifier like "curseforge:ID" or "github:owner/repo".
@@ -65,7 +66,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(stdout).To(ContainSubstring("github:"))
 		})
 		It("M01-4: tree output is alphabetized or stable", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout1, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			stdout2, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
@@ -241,7 +242,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 	// ============== M04: lock release edge cases ==============
 	Describe("M04: lock release edge cases", func() {
 		It("M04-1: release list (no mc arg) uses default", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "release", "list")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("1.21.1"))
@@ -274,7 +275,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 		It("M04-5: release set updates an existing index preserving other versions", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.2.0", "--repo", "o/r", "--tag", "v0.2.0")
 			Expect(err).NotTo(HaveOccurred())
@@ -289,13 +290,13 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(versions).To(ContainElement("0.2.0"))
 		})
 		It("M04-6: release show with valid 0.1.0 version prints full record", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "release", "show", "1.21.1", "0.1.0")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("github"))
 		})
 		It("M04-7: release delete with explicit loader and no target deletes full entry", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1", "0.1.0", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "releases", "1.21.1.json"))
@@ -342,7 +343,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 				"my-mod": map[string]interface{}{
 					"name":   "My Mod",
 					"scope":  "shared",
-					"source": map[string]interface{}{"type": "github-release", "repo": "o/r", "tag": "v1", "assetPattern": "m.jar"},
+					"source": map[string]interface{}{"type": "github-release", "repo": "o/r", "tag": "v1", "assetPattern": "m-*.jar"},
 				},
 			})
 			stdout, _, err := runMcmod(d, "list")
@@ -405,7 +406,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 			Expect(stdout).To(ContainSubstring("type: local"))
 		})
 		It("M06-2: lock show with explicit mc/loader/key in 3-arg form", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge", "jei")
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -424,19 +425,19 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 	// ============== M07: lock tree with various ==============
 	Describe("M07: lock tree with various inputs", func() {
 		It("M07-1: lock tree 0 args uses default", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))
 		})
 		It("M07-2: lock tree 1 arg uses default loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))
 		})
 		It("M07-3: lock tree 2 args full", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))

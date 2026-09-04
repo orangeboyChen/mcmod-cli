@@ -148,7 +148,7 @@ var _ = Describe("dlCurseForge with httptest server", func() {
 				w.Header().Set("Content-Type", "application/json")
 				payload, _ := json.Marshal(map[string]any{"data": "http://placeholder/asset.jar"})
 				_, _ = w.Write(payload)
-			case strings.HasSuffix(r.URL.Path, "/asset.jar") || strings.Contains(r.URL.Path, "/releases/download/"):
+			case strings.HasSuffix(r.URL.Path, "/asset.jar") || strings.HasSuffix(r.URL.Path, "/x.jar") || strings.Contains(r.URL.Path, "/releases/download/"):
 				w.Header().Set("Content-Type", "application/octet-stream")
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write([]byte("fake jar payload"))
@@ -169,6 +169,7 @@ var _ = Describe("dlCurseForge with httptest server", func() {
 
 		prevKey, hadKey = os.LookupEnv("CURSEFORGE_API_KEY")
 		os.Setenv("CURSEFORGE_API_KEY", "fake-key")
+		os.Unsetenv("MCMOD_CURSEFORGE_USE_DOWNLOAD_URL")
 	})
 
 	AfterEach(func() {
@@ -185,6 +186,7 @@ var _ = Describe("dlCurseForge with httptest server", func() {
 		} else {
 			os.Unsetenv("CURSEFORGE_API_KEY")
 		}
+		os.Unsetenv("MCMOD_CURSEFORGE_USE_DOWNLOAD_URL")
 	})
 
 	It("downloads a curseforge jar into the cache", func() {
@@ -247,6 +249,175 @@ var _ = Describe("Downloader error paths (extended)", func() {
 		// We have to call it via the public path because readBodyPreview
 		// is unexported; this test simply exercises the rest of Download.
 		err := Download(&domain.LockedSource{Type: "invalid"}, "")
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("readBodyPreview", func() {
+	It("returns empty string for nil body", func() {
+		Expect(readBodyPreview(nil, 10)).To(BeEmpty())
+	})
+
+	It("truncates to n bytes for large body", func() {
+		body := strings.NewReader(strings.Repeat("x", 1024))
+		got := readBodyPreview(body, 16)
+		Expect(got).To(HaveLen(16))
+	})
+
+	It("trims surrounding whitespace", func() {
+		body := strings.NewReader("  hello world  ")
+		Expect(readBodyPreview(body, 64)).To(Equal("hello world"))
+	})
+})
+
+var _ = Describe("dlCurseForge with httptest server (error paths)", func() {
+	var (
+		srv       *httptest.Server
+		prevTrans http.RoundTripper
+		oldWd     string
+		tmpDir    string
+		prevKey   string
+		hadKey    bool
+	)
+
+	BeforeEach(func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("server error"))
+		})
+		srv = httptest.NewServer(mux)
+		prevTrans = http.DefaultTransport
+		http.DefaultTransport = redirectTransport{target: srv.URL, base: http.DefaultTransport}
+
+		var err error
+		tmpDir, err = os.MkdirTemp("", "dl-err-*")
+		Expect(err).NotTo(HaveOccurred())
+		oldWd, _ = os.Getwd()
+		Expect(os.Chdir(tmpDir)).To(Succeed())
+
+		prevKey, hadKey = os.LookupEnv("CURSEFORGE_API_KEY")
+		os.Setenv("CURSEFORGE_API_KEY", "fake-key")
+	})
+
+	AfterEach(func() {
+		http.DefaultTransport = prevTrans
+		if srv != nil {
+			srv.Close()
+		}
+		_ = os.Chdir(oldWd)
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
+		if hadKey {
+			os.Setenv("CURSEFORGE_API_KEY", prevKey)
+		} else {
+			os.Unsetenv("CURSEFORGE_API_KEY")
+		}
+	})
+
+	It("returns an error when curseforge returns non-200", func() {
+		err := dlCurseForge(&domain.LockedSource{
+			Type: "curseforge", ModID: 1, FileID: 2, FileName: "x.jar",
+		}, "")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("500"))
+	})
+})
+
+var _ = Describe("dlGitHub with httptest server (error paths)", func() {
+	var (
+		srv       *httptest.Server
+		prevTrans http.RoundTripper
+		oldWd     string
+		tmpDir    string
+	)
+
+	BeforeEach(func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("not found"))
+		})
+		srv = httptest.NewServer(mux)
+		prevTrans = http.DefaultTransport
+		http.DefaultTransport = redirectTransport{target: srv.URL, base: http.DefaultTransport}
+		var err error
+		tmpDir, err = os.MkdirTemp("", "dl-gh-err-*")
+		Expect(err).NotTo(HaveOccurred())
+		oldWd, _ = os.Getwd()
+		Expect(os.Chdir(tmpDir)).To(Succeed())
+	})
+
+	AfterEach(func() {
+		http.DefaultTransport = prevTrans
+		if srv != nil {
+			srv.Close()
+		}
+		_ = os.Chdir(oldWd)
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
+	})
+
+	It("returns an error when github returns non-200", func() {
+		err := dlGitHub(&domain.LockedSource{
+			Type: "github-release", Repo: "owner/repo", Tag: "v1.0.0", AssetName: "a.jar",
+		}, "")
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("dlCurseForge with httptest server (additional branches)", func() {
+	var (
+		srv       *httptest.Server
+		prevTrans http.RoundTripper
+		oldWd     string
+		tmpDir    string
+		prevKey   string
+		hadKey    bool
+	)
+
+	BeforeEach(func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			payload, _ := json.Marshal(map[string]any{"data": map[string]any{}})
+			_, _ = w.Write(payload)
+		})
+		srv = httptest.NewServer(mux)
+		prevTrans = http.DefaultTransport
+		http.DefaultTransport = redirectTransport{target: srv.URL, base: http.DefaultTransport}
+		var err error
+		tmpDir, err = os.MkdirTemp("", "dl-extract-*")
+		Expect(err).NotTo(HaveOccurred())
+		oldWd, _ = os.Getwd()
+		Expect(os.Chdir(tmpDir)).To(Succeed())
+		prevKey, hadKey = os.LookupEnv("CURSEFORGE_API_KEY")
+		os.Setenv("CURSEFORGE_API_KEY", "fake-key")
+	})
+
+	AfterEach(func() {
+		http.DefaultTransport = prevTrans
+		if srv != nil {
+			srv.Close()
+		}
+		_ = os.Chdir(oldWd)
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
+		if hadKey {
+			os.Setenv("CURSEFORGE_API_KEY", prevKey)
+		} else {
+			os.Unsetenv("CURSEFORGE_API_KEY")
+		}
+	})
+
+	It("errors when download-url response has no url field", func() {
+		os.Setenv("MCMOD_CURSEFORGE_USE_DOWNLOAD_URL", "1")
+		err := dlCurseForge(&domain.LockedSource{
+			Type: "curseforge", ModID: 1, FileID: 2, FileName: "x.jar",
+		}, "")
 		Expect(err).To(HaveOccurred())
 	})
 })

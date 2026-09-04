@@ -6,9 +6,10 @@ package resolver
 
 import (
 	"fmt"
-	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"os"
 	"strings"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
 // ResolveLocalSource resolves a local jar file into a locked source.

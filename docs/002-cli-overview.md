@@ -7,6 +7,7 @@ Description: CLI command reference for mcmod.
 
 `mcmod` is a Go CLI for managing Minecraft modpack specifications, dependency
 locks, jar resolution/download, build artifacts, and release indexes.
+The same CLI is also available as the shorter `mcm` executable.
 
 ## Root Command
 
@@ -231,20 +232,60 @@ Build modpack artifacts.
 
 ```text
 Usage: mcmod build [<minecraftVersion> [<loader>]] [--target client|server|both]
-                       [--build-type cf|github|all] [--force]
+                       [--build-type cf|all] [--force]
                        [--mc-version <mc>] [--loader <loader>]
 ```
 
 | Flag | Description |
 |---|---|
 | `--target`     | `client`, `server`, or `both` (default: `both`) |
-| `--build-type` | `cf`, `github`, or `all` |
+| `--build-type` | `cf` (CurseForge modpack layout) or `all` (default mcmod zip layout, default) |
 | `--force`      | Overwrite existing zips |
 | `--mc-version` | Override packspec `minecraftVersion` |
 | `--loader`     | Override packspec loader |
 
-Output goes to `releases/v<packVersion>/<packName>-<mc>-<loader>-<loaderVersion>-<target>.zip`
-and `releases/v<packVersion>/<serverPackName>-<mc>-<loader>-<loaderVersion>-<target>.zip`.
+Default (`--build-type all`) output goes to
+`releases/v<packVersion>/<packName>-<mc>-<loader>-<loaderVersion>-<target>.zip`
+and the matching `<serverPackName>-...-server.zip`.
+
+`--build-type cf` produces a single CurseForge modpack zip at
+`releases/v<packVersion>/<packName>-<mc>-<loader>-<loaderVersion>-cf.zip`.
+The zip contains three categories of content:
+
+- `manifest.json` — CurseForge modpack manifest (snake_case schema; see
+  `internal/service/build_zip_cf.go` for the field set). One entry per
+  shared+client mod whose source is `curseforge` AND whose lock entry
+  carries non-zero `modId` and `fileId`. Sorted by
+  `(projectID, fileID)` for a stable on-disk artifact. The launcher
+  downloads these jars at import time from `manifest.files[]`.
+- `modlist.html` — human-readable HTML summary, one bullet per
+  shared+client mod. Curseforge mods link to the CurseForge project
+  page; non-cf mods are annotated with the path inside
+  `overrides/mods/` so the operator can verify the bundle.
+- `overrides/config/`, `overrides/resourcepacks/` — copied from the
+  project root when those directories exist. Per the CurseForge schema,
+  anything that should land in the user's `.minecraft/` root goes under
+  `overrides/`.
+- `overrides/mods/<key>/<jar>` — every shared+client mod whose source
+  is NOT curseforge (i.e. `github-release`, `git`, `local`, `url`).
+  The launcher picks jars up from `overrides/mods/` when
+  `manifest.files[]` cannot resolve them, so non-cf mods stay
+  installed after import. Each mod lands in its own
+  `<key>/` subdirectory so two mods with the same file name do
+  not collide.
+
+`--build-type cf` is single-target: it ignores `--target` and always
+emits the client flavor (CurseForge publishes a single client pack; the
+server zip is an mcmod-only concept). Server-scope mods are silently
+omitted. Curseforge mods whose lock entry is missing `modId` or
+`fileId` are reported to stderr and dropped from the manifest. If a
+non-cf mod's jar cannot be resolved on disk (cache miss plus download
+failure, or a local path that does not exist) the build fails with a
+hard error: a partial zip that silently drops a mod is worse than a
+failure, because the user would not notice the missing mod until they
+opened the modpack in-game. The build still requires at least one
+curseforge mod to be eligible so `manifest.json` stays a valid CF
+import payload.
 
 ### `mcmod tree`
 

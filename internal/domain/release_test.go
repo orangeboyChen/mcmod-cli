@@ -80,3 +80,59 @@ var _ = Describe("ReleaseIndex mutation", func() {
 		Expect(ri.DeleteRelease("9.9.9")).To(BeFalse())
 	})
 })
+
+var _ = Describe("Release artifact routing extended", func() {
+	It("SetArtifact for server target", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.SetArtifact("neoforge", "server", "server.jar")
+		Expect(r.ArtifactFor("neoforge", "server")).To(Equal("server.jar"))
+	})
+
+	It("SetArtifact for both target sets both fields", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.SetArtifact("neoforge", "both", "both.jar")
+		Expect(r.ArtifactFor("neoforge", "client")).To(Equal("both.jar"))
+		Expect(r.ArtifactFor("neoforge", "server")).To(Equal("both.jar"))
+	})
+
+	It("ArtifactFor default branch returns client", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.SetArtifact("neoforge", "client", "c.jar")
+		Expect(r.ArtifactFor("neoforge", "bogus")).To(Equal("c.jar"))
+	})
+
+	It("RemoveArtifact for server target", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.SetArtifact("neoforge", "server", "s.jar")
+		r.RemoveArtifact("neoforge", "server")
+		Expect(r.ArtifactFor("neoforge", "server")).To(BeEmpty())
+	})
+
+	It("RemoveArtifact for both clears both", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.SetArtifact("neoforge", "both", "b.jar")
+		r.RemoveArtifact("neoforge", "both")
+		Expect(r.ArtifactFor("neoforge", "client")).To(BeEmpty())
+		Expect(r.ArtifactFor("neoforge", "server")).To(BeEmpty())
+	})
+
+	It("RemoveArtifact on missing loader is a no-op", func() {
+		r := &ReleaseRecord{Version: "1.0.0", Type: "release"}
+		r.RemoveArtifact("unknown", "client")
+		Expect(r.Artifact).To(BeEmpty())
+	})
+})
+
+var _ = Describe("ReleaseIndex normalize", func() {
+	It("Normalize sets default type", func() {
+		ri := &ReleaseIndex{}
+		ri.Normalize()
+		Expect(ri.Type).To(Equal("package"))
+	})
+
+	It("Normalize preserves existing type", func() {
+		ri := &ReleaseIndex{Type: "custom"}
+		ri.Normalize()
+		Expect(ri.Type).To(Equal("custom"))
+	})
+})

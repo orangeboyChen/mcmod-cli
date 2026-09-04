@@ -1,7 +1,7 @@
 <!--
 File: docs/014-testing.md
 Created: 2026-06-20
-Description: Test coverage and smoke tests.
+Description: Test coverage and end-to-end tests.
 -->
 # Testing
 
@@ -10,11 +10,11 @@ Description: Test coverage and smoke tests.
 - `internal/cli/`: Coverage and integration tests
 
 ## Coverage
-- Target: 80%+ statement coverage
+- Target: 90%+ statement coverage (raised from 80% on 2026-06-21)
 - Run: `go test ./... -coverprofile=coverage.out`
-- Current: 83.2% statement coverage (verified 2026-06-20)
+- Current: see `go tool cover -func=coverage.out` (must remain >= 90.0%)
 - ~980 Ginkgo specs across the full test tree:
-  - `test/`: 476 (smoke 1-6 + integration 1-5) — subprocess-driven end-to-end CLI
+  - `test/e2e/`: subprocess-driven end-to-end CLI coverage
   - `internal/cli/`: 133 (coverage, extra, mass, boost, push, last80)
   - `internal/domain/`: 180 (validation, normalization, store, errors)
   - `internal/service/`: 67 (mod, lock, release-lock, tree, build)
@@ -30,7 +30,7 @@ Description: Test coverage and smoke tests.
 - Required: `golint ./...`
 - Run before commit with gofmt
 
-## Smoke Tests
+## End-to-End Tests
 - Build the binary once per suite in `BeforeSuite` into a temp dir.
 - Each test runs in its own temp dir (`d = GinkgoT().TempDir()`).
 - Subprocess environment is isolated: `HOME=<d>`, `XDG_CONFIG_HOME=<d>`, `CURSEFORGE_API_KEY=""` so user-level config never leaks between tests or into the host.
@@ -40,15 +40,15 @@ Description: Test coverage and smoke tests.
 - Test validation errors
 - Test lock file round-trips
 - Test every CLI subcommand, every flag, and every error path documented above
-- Integration tests cover: real 21-mod packspec, example smoke seed, multi-loader specs, build target/force/build-type, lock add/update/delete/release set/list/show/delete, CURSEFORGE_API_KEY resolution order, set/config/help/error format, tree resolution, and zip content verification
+- Integration tests cover: real 21-mod packspec, generated e2e workspace, multi-loader specs, build target/force/build-type, lock add/update/delete/release set/list/show/delete, CURSEFORGE_API_KEY resolution order, set/config/help/error format, tree resolution, and zip content verification
 
 ## Test Stability
 - Ginkgo randomises spec order; if a failure appears in CI, rerun with `go test -count=1` (or pin a seed via `-ginkgo.seed=N`).
-- The `test/` suite shells out to the built `mcmod` binary, so each test fully re-initialises its working directory and env.
+- The `test/e2e/` suite shells out to the built `mcmod` binary, so each test fully re-initialises its working directory and env.
 - `go test ./...` is expected to pass cleanly on a developer machine within ~10s after the binary is built once.
 
-## Smoke Test TODO Plan
-- [x] Build the `mcmod` binary before running smoke tests.
+## End-to-End Test Coverage
+- [x] Build the `mcmod` binary before running end-to-end tests.
 - [x] Verify root `--help` lists real top-level commands only.
 - [x] Verify `mcmod help` and subcommand help output.
 - [x] Verify `mcmod version` writes the version to stdout.
@@ -103,8 +103,8 @@ Description: Test coverage and smoke tests.
 - [x] Verify build `--target client`, `--target server`, `--target both`, `--build-type`, and `--force` flags are accepted.
 - [x] Verify build reports missing `packspec.json`.
 - [x] Verify unknown commands fail.
-- [x] Verify smoke fixture jars cover NeoForge and Fabric metadata parsing.
-- [x] Verify cache hit, miss, atomic move, and checksum paths used by smoke fixtures.
+- [x] Verify generated fixture jars cover NeoForge and Fabric metadata parsing.
+- [x] Verify cache hit, miss, atomic move, and checksum paths used by generated fixtures.
 - [x] Verify duplicate class path fixture detection.
 - [x] Verify `mcmod` (no args) prints `Usage` banner.
 - [x] Verify `mcmod help <unknown-topic>` prints help to stderr and exits non-zero.
@@ -186,7 +186,7 @@ Description: Test coverage and smoke tests.
 - [x] Verify `mcmod lock show` fails on a missing lock file.
 - [x] Verify `mcmod tree` fails with a hint when the lock is missing.
 
-## Integration Test TODO Plan
+## Integration Test Coverage
 
 This section enumerates the additional integration-level tasks that exercise
 the real `mcmod` binary against realistic packspec/lock/release workspaces.
@@ -353,7 +353,7 @@ error path documented in `specification.md` is invoked end-to-end.
 
 ### Coverage Requirements
 
-- [x] Total statement coverage remains `>= 80.0%` after every change.
+- [x] Total statement coverage remains `>= 90.0%` after every change.
 - [x] `go mod tidy` produces no unrelated dependency changes.
 - [x] `gofmt` produces no diffs on the new test files.
 - [x] `golint ./...` is run; pre-existing warnings are not regressions.

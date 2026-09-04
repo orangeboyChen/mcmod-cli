@@ -1,4 +1,4 @@
-// File: test/integration4_test.go
+// File: test/e2e/integration4_test.go
 // Created: 2026-06-20
 // Description: End-to-end build tests that inspect the produced zip
 // artifacts in detail — file contents, scope separation, and override
@@ -14,6 +14,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -52,6 +53,37 @@ func setupBuildableProject(d string, mcVersion, loader, loaderVersion string) {
 				Source: domain.LockedSource{Type: "local", Path: "./mods/client.jar", FileName: "client.jar"}},
 			"server-mod": {Name: "Server", Scope: "server", Version: "1.0",
 				Source: domain.LockedSource{Type: "local", Path: "./mods/server.jar", FileName: "server.jar"}},
+		},
+	}
+	writeLockFile(d, mcVersion, loader, lock)
+}
+
+// setupCfBuildableProject writes a minimal spec/lock whose mods are all
+// curseforge-sourced with modId/fileId set, so `mcmod build --build-type cf`
+// has at least one eligible mod to emit in the manifest. Jars are staged in
+// the expected .cache/curseforge/<modId>/<fileId>/<fileName> tree so
+// resolveModJar does not try to download.
+func setupCfBuildableProject(d string, mcVersion, loader, loaderVersion string) {
+	os.MkdirAll(filepath.Join(d, "config"), 0755)
+	os.WriteFile(filepath.Join(d, "config", "common.cfg"), []byte("cfg"), 0644)
+	os.WriteFile(filepath.Join(d, "packspec.json"), []byte(`{
+		"packName": "buildtest", "packVersion": "1.5.0",
+		"minecraftVersion": "`+mcVersion+`",
+		"loaderName": ["`+loader+`:`+loaderVersion+`"],
+		"mods": {
+			"cf-mod": {"scope": "shared", "source": {"type": "curseforge", "modId": 111, "fileId": 222}}
+		}
+	}`), 0644)
+	// Stage the cached jar.
+	cached := filepath.Join(d, ".cache", "curseforge", "111", "222", "cf-mod.jar")
+	Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
+	Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
+	lock := &domain.PackLock{
+		Loader: loader, LoaderVersion: loaderVersion,
+		MinecraftVersion: mcVersion,
+		Mods: map[string]domain.LockedMod{
+			"cf-mod": {Name: "CfMod", Scope: "shared", Version: "1.0",
+				Source: domain.LockedSource{Type: "curseforge", ModID: 111, FileID: 222, FileName: "cf-mod.jar"}},
 		},
 	}
 	writeLockFile(d, mcVersion, loader, lock)
@@ -127,9 +159,10 @@ var _ = Describe("Integration4: build zip content", func() {
 			Expect(filepath.Join(d, "releases", "v1.5.0", "buildtest-server-1.21.1-neoforge-21.1.219-server.zip")).To(BeAnExistingFile())
 		})
 		It("L01-5: build with --build-type cf is accepted", func() {
-			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
-			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--target", "client")
+			setupCfBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
+			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--target", "client", "--force")
 			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(ContainSubstring("artifact cf:"))
 		})
 		It("L01-6: build with --build-type all is accepted", func() {
 			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
@@ -287,30 +320,30 @@ var _ = Describe("Integration4: build zip content", func() {
 	})
 
 	// ============== L04: build with example seed (3 mods: create, jei, server-enhanced) ==============
-	Describe("L04: build with example smoke seed", func() {
+	Describe("L04: build with generated e2e workspace", func() {
 		It("L04-1: example seed build --target both creates 2 zips", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "both")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(2))
 		})
 		It("L04-2: example seed build --target client creates 1 zip", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "client")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(1))
 		})
 		It("L04-3: example seed build --target server creates 1 zip", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "server")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(1))
 		})
 		It("L04-4: example seed client zip contains create.jar and jei.jar but not server-enhanced.jar", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "client")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
@@ -321,7 +354,7 @@ var _ = Describe("Integration4: build zip content", func() {
 			Expect(zipHasPath(zp, "mods/serverenhancedmod-1.21.1-neoforge.jar")).To(BeFalse())
 		})
 		It("L04-5: example seed server zip contains create.jar and server-enhanced.jar but not jei.jar", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "server")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))

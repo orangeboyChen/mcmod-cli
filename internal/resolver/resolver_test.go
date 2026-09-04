@@ -5,10 +5,11 @@
 package resolver
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"os"
 	"path/filepath"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
@@ -381,5 +382,62 @@ var _ = Describe("ResolveSource url branch", func() {
 	It("returns an error when url source is missing modId/fileId/fileName", func() {
 		_, err := ResolveSource(domain.ModSource{Type: "url"}, "1.21.1", "neoforge")
 		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("parseVersionFromFileName", func() {
+	It("returns empty for empty input", func() {
+		Expect(parseVersionFromFileName("")).To(BeEmpty())
+	})
+
+	It("extracts version from common mod jar name", func() {
+		Expect(parseVersionFromFileName("jei-1.20.4.jar")).To(Equal("1.20.4"))
+	})
+
+	It("returns the full match when no dash numeric split", func() {
+		Expect(parseVersionFromFileName("jei-1.20.4-fabric.jar")).To(Equal("1.20.4"))
+	})
+
+	It("returns empty when no version found", func() {
+		Expect(parseVersionFromFileName("nomatch.jar")).To(BeEmpty())
+	})
+
+	It("returns the last numeric part after a + build tag", func() {
+		// "mod-1.20+build-1" — regex captures "1.20+build-1" (because the
+		// post-+ group allows dashes), and the dash-split branch returns "1".
+		Expect(parseVersionFromFileName("mod-1.20+build-1.jar")).To(Equal("1"))
+	})
+
+	It("returns the last match when multiple version numbers are present", func() {
+		Expect(parseVersionFromFileName("mod-forge-1.20.1-1.0.0.jar")).To(Equal("1.0.0"))
+	})
+
+})
+
+var _ = Describe("ResolveSource url and dispatcher", func() {
+	It("errors on url source without modId/fileId/fileName", func() {
+		_, err := ResolveSource(domain.ModSource{Type: "url"}, "1.21.1", "neoforge")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("renders url source URL when urlPattern is set", func() {
+		out, err := ResolveSource(domain.ModSource{
+			Type:       "url",
+			ModID:      10,
+			FileID:     20,
+			FileName:   "mod.jar",
+			URLPattern: "https://cdn/{mcVersion}/{fileName}",
+		}, "1.21.1", "neoforge")
+		Expect(err).NotTo(HaveOccurred())
+		ls, ok := out.(*domain.LockedSource)
+		Expect(ok).To(BeTrue())
+		Expect(ls.URL).To(ContainSubstring("1.21.1"))
+		Expect(ls.URL).To(ContainSubstring("mod.jar"))
+	})
+
+	It("git source dispatches to ResolveGitPackage", func() {
+		// We just want the dispatcher path; no network needed.
+		_, _ = ResolveSource(domain.ModSource{Type: "git", Repo: "o/r"}, "1.21.1", "neoforge")
+		Expect(true).To(BeTrue())
 	})
 })

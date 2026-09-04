@@ -4,6 +4,10 @@
 
 package domain
 
+// Version is the mcmod CLI release version. It is the single source of
+// truth printed by `mcmod version` and consumed by release tooling.
+const Version = "0.1.0"
+
 // Source type constants used by ModSource.Type and LockedSource.Type.
 const (
 	SourceCurseForge    = "curseforge"

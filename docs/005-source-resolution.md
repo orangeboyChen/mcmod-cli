@@ -9,6 +9,8 @@ Description: Source resolution for CurseForge, GitHub, Git, and local files.
 - API base: `https://api.curseforge.com/v1`
 - Resolves by query or mod ID + file ID
 - Requires API key (env, project, or user config)
+- Default download URL: `https://edge.forgecdn.net/files/{fileId4}/{fileName}`
+- Set `MCMOD_CURSEFORGE_USE_DOWNLOAD_URL=1` to use the API download-url endpoint
 
 ## GitHub Release
 - Resolves by repo, tag, and asset pattern
