@@ -100,7 +100,7 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 
 		// Pre-seed the github-release cache so resolveModJar finds the jar
 		// without trying to download it (the test does not need network).
-		ghDir := filepath.Join(".cache", "github-release", "o", "r", "v1")
+		ghDir := filepath.Join(".mcmod", "cache", "github-release", "o", "r", "v1")
 		Expect(os.MkdirAll(ghDir, 0755)).To(Succeed())
 		Expect(os.WriteFile(filepath.Join(ghDir, "a.jar"), []byte("gh"), 0644)).To(Succeed())
 

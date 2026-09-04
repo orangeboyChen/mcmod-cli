@@ -1,19 +1,9 @@
-<!--
-File: docs/006-mod-key-normalization.md
-Created: 2026-06-20
-Description: Mod key normalization rules.
--->
-# Mod Key Normalization
+<!-- File: docs/006-mod-key-normalization.md; Created: 2026-09-04; Description: Mod keys. -->
+# Mod Keys
 
-Rules:
-1. Lowercase
-2. Spaces, underscores, punctuation → `-`
-3. Apostrophes deleted
-4. Consecutive `-` collapsed
-5. Leading/trailing `-` stripped
+Keys are lowercased; spaces, underscores, and punctuation become `-`;
+apostrophes are removed; repeated and edge hyphens are collapsed or trimmed.
+`Farmer's Delight` becomes `farmers-delight`.
 
-Examples:
-- `Farmer's Delight` → `farmers-delight`
-- `Brewin' And Chewin'` → `brewin-and-chewin`
-- `Create Crafts & Additions` → `create-crafts-additions`
-- `Greenhouse Config` → `greenhouse-config`
+Expanded Git keys use a normalized repository prefix such as
+`owner-bundle-common`.

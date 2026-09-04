@@ -52,7 +52,7 @@ var _ = Describe("Cache boost", func() {
 		defer os.Chdir(orig)
 		os.Chdir(d)
 		Expect(EnsureCacheDir()).To(Succeed())
-		_, err := os.Stat(".cache")
+		_, err := os.Stat(".mcmod/cache")
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
@@ -107,7 +107,7 @@ var _ = Describe("Cache hash and check helpers", func() {
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
-		p := ".cache/curseforge/1/2/m.jar"
+		p := ".mcmod/cache/curseforge/1/2/m.jar"
 		Expect(os.MkdirAll(filepath.Dir(p), 0755)).To(Succeed())
 		Expect(os.WriteFile(p, []byte("x"), 0644)).To(Succeed())
 		ok, _, err := CheckCurseForge("1", "2", "m.jar")
@@ -124,7 +124,7 @@ var _ = Describe("Cache hash and check helpers", func() {
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
-		p := ".cache/github-release/o/r/v1/m.jar"
+		p := ".mcmod/cache/github-release/o/r/v1/m.jar"
 		Expect(os.MkdirAll(filepath.Dir(p), 0755)).To(Succeed())
 		Expect(os.WriteFile(p, []byte("x"), 0644)).To(Succeed())
 		ok, _, err := CheckGitHubRelease("o", "r", "v1", "m.jar")
@@ -166,8 +166,8 @@ var _ = Describe("Cache hash and check helpers", func() {
 // --- from ResolvedIDPath ---
 
 var _ = Describe("ResolvedIDPath", func() {
-	It("returns the canonical path under .cache/resolved", func() {
-		Expect(ResolvedIDPath("1.21.1", "neoforge")).To(Equal(".cache/resolved/1.21.1-neoforge.json"))
-		Expect(ResolvedIDPath("1.20.4", "fabric")).To(Equal(".cache/resolved/1.20.4-fabric.json"))
+	It("returns the canonical path under .mcmod/cache/resolved", func() {
+		Expect(ResolvedIDPath("1.21.1", "neoforge")).To(Equal(".mcmod/cache/resolved/1.21.1-neoforge.json"))
+		Expect(ResolvedIDPath("1.20.4", "fabric")).To(Equal(".mcmod/cache/resolved/1.20.4-fabric.json"))
 	})
 })

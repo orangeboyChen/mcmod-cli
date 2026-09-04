@@ -129,7 +129,7 @@ func parseVersionFromFileName(name string) string {
 
 // resolvedCache maps mod key -> known good modId/fileId/fileName so lock can
 // skip the CurseForge search step on subsequent runs. The cache lives at
-// .cache/resolved/<mc>-<loader>.json. It is best-effort: a stale entry
+// .mcmod/cache/resolved/<mc>-<loader>.json. It is best-effort: a stale entry
 // (file removed upstream) is fine because BuildLock re-validates the file
 // via findCurseForgeFile before trusting it.
 type resolvedCache map[string]resolvedEntry
@@ -281,7 +281,7 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 		Mods:             make(map[string]domain.LockedMod),
 	}
 
-	// Load the resolved-id cache (.cache/resolved/<mc>-<loader>.json) so we
+	// Load the resolved-id cache (.mcmod/cache/resolved/<mc>-<loader>.json) so we
 	// can skip the expensive CurseForge search step on subsequent runs. The
 	// cache is keyed by spec mod key; a hit lets the worker construct the
 	// LockedSource directly from the cached modId/fileId/fileName.

@@ -111,9 +111,9 @@ locks/
   dependencies/<mc>-<loader>.json   # 解析后的 lock 文件
   releases/<mc>.json                # 构建发布索引
 releases/                           # 构建产物 zip（不提交）
-.cache/                             # jar 下载缓存（不提交）
-.mcmod/                             # 项目级 CLI 配置: cfKey (不提交)
-.cache/resolved/                    # resolver id 缓存: mod key -> modId/fileId (不提交)
+.mcmod/config.json                  # 项目级 CurseForge key（不提交）
+.mcmod/cache/                       # jar 与 resolver 缓存（不提交）
+.mcmod/cache/resolved/              # resolver id 缓存（不提交）
 internal/
   cli/                              # cobra 命令
   domain/                           # 数据模型、校验、存储
@@ -123,7 +123,7 @@ internal/
   graph/                            # 依赖图与版本决议
   service/                          # 业务逻辑（lock、build、release、tree）
   cache/                            # 缓存辅助
-  config/                           # 用户 / 项目 / 环境配置
+  config/                           # 项目 / 环境配置
 cmd/mcmod/                          # CLI 入口
 ```
 

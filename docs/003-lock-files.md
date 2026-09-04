@@ -1,23 +1,20 @@
 <!--
 File: docs/003-lock-files.md
 Created: 2026-09-04
-Description: Dependency lock format and recursive expansion output.
+Description: Defines generated dependency lock files.
 -->
 
 # Lock Files
 
-Lock files live at `locks/dependencies/<minecraftVersion>-<loader>.json`.
+`mcmod lock` writes `locks/dependencies/<minecraftVersion>-<loader>.json`.
+The top-level fields are `minecraftVersion`, `loader`, optional
+`loaderVersion`, and `mods`.
 
-The `mods` map contains the complete resolved set, including mods discovered
-inside recursive Git packspec bundles. Expanded keys are namespaced and are
-not added to the root `packspec.json`.
+Each mod entry stores display metadata, scope, resolved source, optional
+identity and dependency references, plus a source fingerprint. Git bundles are
+expanded before locking: their child mods appear as flattened entries with
+repository-namespaced keys. The root `packspec.json` is never changed.
 
-Each entry contains `name`, `scope`, `source`, optional `identity`, and a
-fingerprint `hash`. `dependencies` is reserved for dependency references
-reported by resolved artifacts; Git packspec expansion is represented by the
-flattened entries and their source metadata.
-
-Run `mcmod lock 1.21.1 neoforge` to regenerate the file. Incremental locking
-keeps matching entries and removes entries no longer present after expansion.
-Run summaries and failures are written to stderr; the JSON remains a clean
-source of truth.
+Repeated locks keep unchanged entries, add new entries, and remove entries no
+longer reachable from the root specification. Progress and partial failures
+are printed to stderr, not persisted in the lock JSON.

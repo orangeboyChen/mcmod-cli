@@ -194,7 +194,7 @@ var _ = Describe("dlCurseForge with httptest server", func() {
 			Type: "curseforge", ModID: 1, FileID: 2, FileName: "x.jar",
 		}, "label")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(filepath.Join(tmpDir, ".cache", "curseforge", "1", "2", "x.jar")).To(BeAnExistingFile())
+		Expect(filepath.Join(tmpDir, ".mcmod", "cache", "curseforge", "1", "2", "x.jar")).To(BeAnExistingFile())
 	})
 
 	It("downloads a github release asset into the cache", func() {
@@ -202,7 +202,7 @@ var _ = Describe("dlCurseForge with httptest server", func() {
 			Type: "github-release", Repo: "owner/repo", Tag: "v1.0.0", AssetName: "asset.jar",
 		}, "label")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(filepath.Join(tmpDir, ".cache", "github-release", "owner", "repo", "v1.0.0", "asset.jar")).To(BeAnExistingFile())
+		Expect(filepath.Join(tmpDir, ".mcmod", "cache", "github-release", "owner", "repo", "v1.0.0", "asset.jar")).To(BeAnExistingFile())
 	})
 })
 
