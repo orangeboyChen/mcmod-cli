@@ -17,6 +17,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -602,10 +603,11 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 			Expect(err).To(HaveOccurred())
 		})
 		It("N10-10: build --build-type cf is accepted", func() {
-			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
+			setupCfBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
 			os.RemoveAll(filepath.Join(d, "releases"))
-			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf")
+			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--force")
 			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(ContainSubstring("artifact cf:"))
 		})
 		It("N10-11: build --build-type all is accepted", func() {
 			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")

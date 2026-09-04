@@ -11,13 +11,18 @@ mcmod.exe
 .vscode/
 *.iml
 
+# Secrets
+.env
+
 # Cache
 .cache/
 .mcmod/
+packspec.json
 
 # Build output
 releases/
 dist/
+test/examples/
 
 # Coverage
 coverage.out

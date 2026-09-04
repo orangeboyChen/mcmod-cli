@@ -7,10 +7,11 @@ package service
 import (
 	"archive/zip"
 	"fmt"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"os"
 	"path/filepath"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"bytes"
 
@@ -291,3 +292,58 @@ var _ = Describe("detectMissingRequiredDeps with real jars", func() {
 		Expect(detectMissingRequiredDeps(bc, modFiles)).To(Succeed())
 	})
 })
+
+var _ = Describe("detectMissingRequiredDeps with jars", func() {
+	It("returns nil when all required deps are whitelisted", func() {
+		// Create a jar with metadata that has a required dep "minecraft"
+		// which is on the neoforge whitelist.
+		dir := GinkgoT().TempDir()
+		jar := createJarWithMeta(dir, "my-mod", map[string]string{"minecraft": "[1.21.1]"})
+		bc := &buildContext{Lock: &domain.PackLock{Mods: map[string]domain.LockedMod{}}, Loader: "neoforge", McVersion: "1.21.1"}
+		Expect(detectMissingRequiredDeps(bc, map[string]string{"my-mod": jar})).To(Succeed())
+	})
+
+	It("reads metadata for a real jar and returns nil", func() {
+		// The metadata reader only extracts modid/version (not deps), so this
+		// path always returns nil. The point is to exercise the loop.
+		dir := GinkgoT().TempDir()
+		jar := createJarWithMeta(dir, "my-mod", map[string]string{})
+		bc := &buildContext{Lock: &domain.PackLock{Mods: map[string]domain.LockedMod{}}, Loader: "neoforge", McVersion: "1.21.1"}
+		Expect(detectMissingRequiredDeps(bc, map[string]string{"my-mod": jar})).To(Succeed())
+	})
+})
+
+// createJarWithMeta creates a small jar with a mods.toml/neoforge.mods entry
+// declaring the given mod id and required deps. The metadata is recognised
+// by internal/metadata.ReadJarMetadata.
+func createJarWithMeta(dir, modID string, requiredDeps map[string]string) string {
+	jarPath := filepath.Join(dir, modID+".jar")
+	f, err := os.Create(jarPath)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(func() { f.Close() })
+
+	w := zip.NewWriter(f)
+
+	// neoforge.mods.toml format.
+	depsToml := ""
+	for k, v := range requiredDeps {
+		depsToml += fmt.Sprintf("[[dependencies.%s]]\nmodId=\"%s\"\nmandatory=true\nversionRange=\"%s\"\n", modID, k, v)
+	}
+	tomlContent := fmt.Sprintf(`modLoader="javafml"
+loaderVersion="*"
+license="MIT"
+[[mods]]
+modId="%s"
+version="1.0.0"
+displayName="Test"
+description="Test"
+%s
+`, modID, depsToml)
+	wr, err := w.Create("META-INF/mods.toml")
+	Expect(err).NotTo(HaveOccurred())
+	_, _ = wr.Write([]byte(tomlContent))
+
+	Expect(w.Close()).To(Succeed())
+	Expect(f.Close()).To(Succeed())
+	return jarPath
+}

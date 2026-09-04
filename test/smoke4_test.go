@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -330,17 +331,34 @@ var _ = Describe("Smoke: comprehensive CLI coverage", func() {
 			Expect(err).NotTo(HaveOccurred())
 			_ = stderr
 		})
-		It("build with --build-type flag", func() {
+		It("build with --build-type=cf emits the CurseForge layout zip", func() {
 			writeSpec(d, `{"packName":"bt","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"],
+"mods":{"m":{"scope":"shared","source":{"type":"curseforge","modId":1,"fileId":2}}}}`)
+			os.MkdirAll(filepath.Join(d, "locks", "dependencies"), 0755)
+			writeLockFile(d, "1.21.1", "neoforge", &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1",
+				Mods: map[string]domain.LockedMod{"m": {Name: "M", Scope: "shared",
+					Source: domain.LockedSource{Type: "curseforge", ModID: 1, FileID: 2, FileName: "m.jar"}}}})
+			// Stage the cached jar so resolveModJar does not hit the network.
+			cached := filepath.Join(d, ".cache", "curseforge", "1", "2", "m.jar")
+			Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
+			Expect(os.WriteFile(cached, []byte("d"), 0644)).To(Succeed())
+			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--force")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(ContainSubstring("built"))
+			Expect(stdout).To(ContainSubstring("artifact cf:"))
+		})
+
+		It("build with --build-type=cf errors when no curseforge mods present", func() {
+			writeSpec(d, `{"packName":"bt2","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"],
 "mods":{"m":{"scope":"shared","source":{"type":"local","path":"./m.jar"}}}}`)
 			os.MkdirAll(filepath.Join(d, "locks", "dependencies"), 0755)
 			writeLockFile(d, "1.21.1", "neoforge", &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1",
 				Mods: map[string]domain.LockedMod{"m": {Name: "M", Scope: "shared",
 					Source: domain.LockedSource{Type: "local", Path: "./m.jar", FileName: "m.jar"}}}})
 			os.WriteFile(filepath.Join(d, "m.jar"), []byte("d"), 0644)
-			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(stdout).To(ContainSubstring("built"))
+			_, stderr, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--force")
+			Expect(err).To(HaveOccurred())
+			Expect(stderr).To(ContainSubstring("no curseforge-sourced mods"))
 		})
 		It("build with --force flag", func() {
 			writeSpec(d, `{"packName":"bf","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"],

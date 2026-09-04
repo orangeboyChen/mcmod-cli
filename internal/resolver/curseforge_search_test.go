@@ -5,6 +5,7 @@
 package resolver
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -140,5 +141,45 @@ var _ = Describe("findCurseForgeFile error path", func() {
 		_, _, err := findCurseForgeFile(238222, "1.21.1", "neoforge")
 		// We do not set a real key, so the API call will fail.
 		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("findCurseForgeFile branches", func() {
+	It("errors when no file matches the requested mcVersion", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": 100, "fileName": "a.jar", "fileDate": "2024-01-01", "releaseType": 1, "gameVersions": []string{"1.20.1"}},
+				},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		_, _, err := findCurseForgeFile(1, "1.21.1", "neoforge")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("no file"))
+	})
+
+	It("prefers release over prerelease", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": 100, "fileName": "pre.jar", "fileDate": "2024-02-01", "releaseType": 2, "gameVersions": []string{"1.21.1"}},
+					{"id": 200, "fileName": "rel.jar", "fileDate": "2024-01-01", "releaseType": 1, "gameVersions": []string{"1.21.1"}},
+				},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		id, name, err := findCurseForgeFile(1, "1.21.1", "neoforge")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(id).To(Equal(200))
+		Expect(name).To(Equal("rel.jar"))
 	})
 })

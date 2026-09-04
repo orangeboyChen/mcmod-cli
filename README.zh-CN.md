@@ -26,6 +26,7 @@ Jar 解析与下载、构建产物（client / server zip）和发布索引。
 - `mcmod lock release` 维护 `locks/releases/<mcVersion>.json`
 - `mcmod tree` 渲染已解析的依赖树
 - 跨平台二进制，可通过 `go install` 或 GitHub Releases 安装
+- 也提供简短命令名 `mcm`（`go install ./cmd/mcm`）。
 
 ## 快速开始
 
@@ -91,7 +92,8 @@ locks/
   releases/<mc>.json                # 构建发布索引
 releases/                           # 构建产物 zip（不提交）
 .cache/                             # jar 下载缓存（不提交）
-.mcmod/                             # 项目级 CLI 配置（不提交）
+.mcmod/                             # 项目级 CLI 配置: cfKey (不提交)
+.cache/resolved/                    # resolver id 缓存: mod key -> modId/fileId (不提交)
 internal/
   cli/                              # cobra 命令
   domain/                           # 数据模型、校验、存储
@@ -114,6 +116,28 @@ cmd/mcmod/                          # CLI 入口
 - [docs/004-release-index.md](./docs/004-release-index.md) — 发布索引格式
 - [docs/005-source-resolution.md](./docs/005-source-resolution.md) — source 解析方式
 - [docs/008-build-pipeline.md](./docs/008-build-pipeline.md) — 构建流水线与校验
+
+## TODO
+
+`mcmod build` 目前只打包 `mods/` 目录。以下整合包产物仍在 TODO 列表,
+尚未实现:
+
+- **Mod** — 已完整支持。schema 与 lock/release 文档已说明。
+- **Shaderpack** (`shaderpacks/`) — 不支持。`packspec.json` 暂未提供
+  shaderpack 的 source 类型,resolver 也不会处理,zip 中不会写入对应目录。
+- **Resourcepack** (`resourcepacks/`) — 如果项目根目录存在 `resourcepacks/`,
+  客户端 zip 会原样拷贝进去;但 resolver 与 lock 流水线目前不会跟踪
+  packspec 级的 resourcepack 条目。
+- **Datapack** (`datapacks/`) — 不支持。
+- **世界存档** — 不支持。
+- **CurseForge 整合包布局** (`manifest.json` + `modlist.html` +
+  `overrides/{config,resourcepacks}/`) — 已实现。`mcmod build
+  --build-type cf` 产出 manifest-only 的 zip(不带 mod jar;启动器导入时
+  按 `manifest.files[]` 自行下载)。详细契约见 `docs/002-cli-overview.md`。
+- **Modrinth `.mrpack` 布局** — 文档中保留,CLI 暂不接受。
+
+请在 issue 中跟进;按 "docs win" 规则,关闭其中任一项的 PR 必须同时更新
+`docs/002-cli-overview.md` 与 `AGENTS.md`。
 
 ## 构建
 

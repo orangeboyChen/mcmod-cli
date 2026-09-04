@@ -172,3 +172,91 @@ var _ = Describe("Direct file I/O helpers", func() {
 		Expect(err).To(HaveOccurred())
 	})
 })
+
+var _ = Describe("Store error paths", func() {
+	It("WriteLockFile returns an error when mkdir fails", func() {
+		// Use a path whose parent cannot be created: writing a file where the
+		// MkdirAll target is an existing file.
+		dir := GinkgoT().TempDir()
+		// Create a file that will be used as a parent of the lock path so
+		// MkdirAll cannot create the needed directory.
+		blockingFile := filepath.Join(dir, "block")
+		Expect(os.WriteFile(blockingFile, []byte("block"), 0644)).To(Succeed())
+		path := filepath.Join(blockingFile, "sub", "lock.json")
+		err := WriteLockFile(path, &PackLock{})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("WriteReleaseIndex returns an error when mkdir fails", func() {
+		dir := GinkgoT().TempDir()
+		blockingFile := filepath.Join(dir, "block")
+		Expect(os.WriteFile(blockingFile, []byte("block"), 0644)).To(Succeed())
+		path := filepath.Join(blockingFile, "sub", "release.json")
+		err := WriteReleaseIndex(path, &ReleaseIndex{})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("WritePackSpec returns an error when mkdir fails", func() {
+		dir := GinkgoT().TempDir()
+		blockingFile := filepath.Join(dir, "block")
+		Expect(os.WriteFile(blockingFile, []byte("block"), 0644)).To(Succeed())
+		path := filepath.Join(blockingFile, "sub", "packspec.json")
+		err := WritePackSpec(path, &PackSpec{})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("SaveLock falls back to LoadLock via FileStore", func() {
+		dir := GinkgoT().TempDir()
+		store := &FileStore{Root: dir}
+		Expect(store.SaveLock("1.21.1", "neoforge", PackLock{
+			Loader: "neoforge", MinecraftVersion: "1.21.1",
+			Mods: map[string]LockedMod{"a": {Name: "A"}},
+		})).To(Succeed())
+		lock, err := store.LoadLock("1.21.1", "neoforge")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(lock.Mods).To(HaveKey("a"))
+	})
+
+	It("SaveLock returns an error when mkdir fails", func() {
+		dir := GinkgoT().TempDir()
+		blockingFile := filepath.Join(dir, "block")
+		Expect(os.WriteFile(blockingFile, []byte("block"), 0644)).To(Succeed())
+		store := &FileStore{Root: filepath.Join(blockingFile, "sub")}
+		err := store.SaveLock("1.21.1", "neoforge", PackLock{})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("SaveReleaseIndex writes a normalized index", func() {
+		dir := GinkgoT().TempDir()
+		store := &FileStore{Root: dir}
+		Expect(store.SaveReleaseIndex("1.21.1", ReleaseIndex{
+			Releases: []ReleaseRecord{{Version: "1.0.0"}},
+		})).To(Succeed())
+		ri, err := store.LoadReleaseIndex("1.21.1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ri.Type).To(Equal("package"))
+	})
+
+	It("SaveSpec writes a spec and LoadSpec reads it back", func() {
+		dir := GinkgoT().TempDir()
+		store := &FileStore{Root: dir}
+		Expect(store.SaveSpec(PackSpec{PackName: "p", MinecraftVersion: "1.21.1"})).To(Succeed())
+		spec, err := store.LoadSpec()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(spec.PackName).To(Equal("p"))
+	})
+
+	It("LoadSpec returns an error for missing file", func() {
+		store := &FileStore{Root: GinkgoT().TempDir()}
+		_, err := store.LoadSpec()
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("LoadSpec returns an error for invalid JSON", func() {
+		dir := GinkgoT().TempDir()
+		Expect(os.WriteFile(filepath.Join(dir, "packspec.json"), []byte("not-json"), 0644)).To(Succeed())
+		store := &FileStore{Root: dir}
+		_, err := store.LoadSpec()
+		Expect(err).To(HaveOccurred())
+	})
+})

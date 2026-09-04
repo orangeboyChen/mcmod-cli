@@ -14,6 +14,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -52,6 +53,37 @@ func setupBuildableProject(d string, mcVersion, loader, loaderVersion string) {
 				Source: domain.LockedSource{Type: "local", Path: "./mods/client.jar", FileName: "client.jar"}},
 			"server-mod": {Name: "Server", Scope: "server", Version: "1.0",
 				Source: domain.LockedSource{Type: "local", Path: "./mods/server.jar", FileName: "server.jar"}},
+		},
+	}
+	writeLockFile(d, mcVersion, loader, lock)
+}
+
+// setupCfBuildableProject writes a minimal spec/lock whose mods are all
+// curseforge-sourced with modId/fileId set, so `mcmod build --build-type cf`
+// has at least one eligible mod to emit in the manifest. Jars are staged in
+// the expected .cache/curseforge/<modId>/<fileId>/<fileName> tree so
+// resolveModJar does not try to download.
+func setupCfBuildableProject(d string, mcVersion, loader, loaderVersion string) {
+	os.MkdirAll(filepath.Join(d, "config"), 0755)
+	os.WriteFile(filepath.Join(d, "config", "common.cfg"), []byte("cfg"), 0644)
+	os.WriteFile(filepath.Join(d, "packspec.json"), []byte(`{
+		"packName": "buildtest", "packVersion": "1.5.0",
+		"minecraftVersion": "`+mcVersion+`",
+		"loaderName": ["`+loader+`:`+loaderVersion+`"],
+		"mods": {
+			"cf-mod": {"scope": "shared", "source": {"type": "curseforge", "modId": 111, "fileId": 222}}
+		}
+	}`), 0644)
+	// Stage the cached jar.
+	cached := filepath.Join(d, ".cache", "curseforge", "111", "222", "cf-mod.jar")
+	Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
+	Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
+	lock := &domain.PackLock{
+		Loader: loader, LoaderVersion: loaderVersion,
+		MinecraftVersion: mcVersion,
+		Mods: map[string]domain.LockedMod{
+			"cf-mod": {Name: "CfMod", Scope: "shared", Version: "1.0",
+				Source: domain.LockedSource{Type: "curseforge", ModID: 111, FileID: 222, FileName: "cf-mod.jar"}},
 		},
 	}
 	writeLockFile(d, mcVersion, loader, lock)
@@ -127,9 +159,10 @@ var _ = Describe("Integration4: build zip content", func() {
 			Expect(filepath.Join(d, "releases", "v1.5.0", "buildtest-server-1.21.1-neoforge-21.1.219-server.zip")).To(BeAnExistingFile())
 		})
 		It("L01-5: build with --build-type cf is accepted", func() {
-			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
-			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--target", "client")
+			setupCfBuildableProject(d, "1.21.1", "neoforge", "21.1.219")
+			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--target", "client", "--force")
 			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(ContainSubstring("artifact cf:"))
 		})
 		It("L01-6: build with --build-type all is accepted", func() {
 			setupBuildableProject(d, "1.21.1", "neoforge", "21.1.219")

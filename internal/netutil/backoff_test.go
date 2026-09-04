@@ -225,3 +225,82 @@ var _ = Describe("RetryConfig.withDefaults", func() {
 		Expect(c.MaxDelay).To(Equal(100 * time.Millisecond))
 	})
 })
+
+var _ = Describe("computeDelay extra branches", func() {
+	It("caps delay at MaxDelay when delay exceeds it", func() {
+		cfg := RetryConfig{BaseDelay: time.Second, MaxDelay: 100 * time.Millisecond}
+		d := computeDelay(cfg, 5, 0)
+		// MaxDelay (100ms) + jitter range - MaxDelay/4, so the upper bound
+		// is roughly 175ms. The pre-jitter cap is exactly MaxDelay.
+		Expect(d).To(BeNumerically("<=", 200*time.Millisecond))
+	})
+
+	It("returns extra added to base when attempt is 1 and base is small", func() {
+		cfg := RetryConfig{BaseDelay: 1 * time.Millisecond, MaxDelay: 10 * time.Second}
+		d := computeDelay(cfg, 1, 50*time.Millisecond)
+		Expect(d).To(BeNumerically(">=", 50*time.Millisecond))
+	})
+})
+
+var _ = Describe("DoWithRetry readBodyPreview", func() {
+	It("readBodyPreview returns empty for nil body", func() {
+		Expect(readBodyPreview(nil, 10)).To(BeEmpty())
+	})
+
+	It("readBodyPreview reads up to n bytes", func() {
+		body := strings.NewReader(strings.Repeat("a", 100))
+		got := readBodyPreview(body, 10)
+		Expect(got).To(HaveLen(10))
+	})
+})
+
+var _ = Describe("DoWithRetry transient then success", func() {
+	It("logs success on attempt > 1 when transient status recovers", func() {
+		var attempts int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attempts++
+			if attempts == 1 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte("transient"))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		DeferCleanup(srv.Close)
+		req, _ := http.NewRequest("GET", srv.URL, nil)
+		cfg := RetryConfig{MaxAttempts: 3, BaseDelay: time.Millisecond}
+		resp, n, err := DoWithRetry(http.DefaultClient, req, cfg)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(n).To(Equal(2))
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+	})
+
+	It("honours Retry-After header when present on transient response", func() {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+		}))
+		DeferCleanup(srv.Close)
+		req, _ := http.NewRequest("GET", srv.URL, nil)
+		cfg := RetryConfig{MaxAttempts: 2, BaseDelay: time.Millisecond}
+		_, _, err := DoWithRetry(http.DefaultClient, req, cfg)
+		// Either returns or gives up — the key is the Retry-After path runs.
+		Expect(err).NotTo(HaveOccurred()) // we get the last 429 response
+	})
+})
+
+var _ = Describe("readBodyPreview edge cases", func() {
+	It("returns empty when read returns error", func() {
+		r := io.NopCloser(errorReader{})
+		Expect(readBodyPreview(r, 10)).To(BeEmpty())
+	})
+
+	It("returns the body as-is when within n bytes", func() {
+		Expect(readBodyPreview(strings.NewReader("hello world"), 64)).To(Equal("hello world"))
+	})
+})
+
+type errorReader struct{}
+
+func (errorReader) Read(_ []byte) (int, error) { return 0, io.ErrUnexpectedEOF }

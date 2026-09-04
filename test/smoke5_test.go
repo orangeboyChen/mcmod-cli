@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -515,11 +516,23 @@ var _ = Describe("Smoke: exhaustive CLI coverage S50-S65", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("built"))
 		})
-		It("S61-4: build with --build-type cf", func() {
+		It("S61-4: build with --build-type cf emits a CurseForge layout zip", func() {
 			setupBuildablePack()
-			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf")
+			// Replace the local source with a curseforge source + a cached jar
+			// so --build-type cf has an eligible mod.
+			Expect(os.RemoveAll(filepath.Join(d, "a.jar"))).To(Succeed())
+			writeSpec(d, `{"packName":"bld","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"],
+"mods":{"a":{"name":"A","scope":"shared","source":{"type":"curseforge","modId":1,"fileId":2}}}}`)
+			writeLockFile(d, "1.21.1", "neoforge", &domain.PackLock{Loader: "neoforge", MinecraftVersion: "1.21.1",
+				Mods: map[string]domain.LockedMod{"a": {Name: "A", Scope: "shared",
+					Source: domain.LockedSource{Type: "curseforge", ModID: 1, FileID: 2, FileName: "a.jar"}}}})
+			cached := filepath.Join(d, ".cache", "curseforge", "1", "2", "a.jar")
+			Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
+			Expect(os.WriteFile(cached, []byte("a"), 0644)).To(Succeed())
+			stdout, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--build-type", "cf", "--force")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("built"))
+			Expect(stdout).To(ContainSubstring("artifact cf:"))
 		})
 		It("S61-5: build with --force flag", func() {
 			setupBuildablePack()

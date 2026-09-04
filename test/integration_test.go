@@ -15,6 +15,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -103,26 +104,29 @@ func makeRealPackSpec(dir string) {
 				},
 			},
 			"jei": map[string]interface{}{
-				"name":  "Just Enough Items",
-				"scope": "client",
+				"name":   "Just Enough Items",
+				"scope":  "client",
+				"loader": []string{"neoforge"},
 				"source": map[string]interface{}{
 					"type":  "curseforge",
 					"query": "Just Enough Items",
 				},
 			},
 			"server-enhanced": map[string]interface{}{
-				"name":  "Server Enhanced Mod",
-				"scope": "server",
+				"name":   "Server Enhanced Mod",
+				"scope":  "server",
+				"loader": []string{"neoforge"},
 				"source": map[string]interface{}{
 					"type":         "github-release",
 					"repo":         "orangeboyChen/mc-server-enhanced-mod",
 					"tag":          "v1.4.2",
-					"assetPattern": "serverenhancedmod-1.21.1-neoforge.jar",
+					"assetPattern": "serverenhancedmod-1.21.1-*.jar",
 				},
 			},
 			"asset-pattern-object": map[string]interface{}{
-				"name":  "Asset Pattern Object",
-				"scope": "shared",
+				"name":   "Asset Pattern Object",
+				"scope":  "shared",
+				"loader": []string{"neoforge"},
 				"source": map[string]interface{}{
 					"type": "github-release",
 					"repo": "example/asset-pattern-object",
@@ -133,8 +137,9 @@ func makeRealPackSpec(dir string) {
 				},
 			},
 			"local-mod": map[string]interface{}{
-				"name":  "Local Mod",
-				"scope": "client",
+				"name":   "Local Mod",
+				"scope":  "client",
+				"loader": []string{"neoforge"},
 				"source": map[string]interface{}{
 					"type": "local",
 					"path": "./mods/local-mod.jar",
@@ -153,9 +158,11 @@ func makeRealLockForBuild(dir string) {
 		Loader: "neoforge", LoaderVersion: "21.1.219",
 		MinecraftVersion: "1.21.1",
 		Mods: map[string]domain.LockedMod{
-			"create":          {Name: "Create", Version: "6.0.0", Scope: "shared", Source: domain.LockedSource{Type: "curseforge", ModID: 328085, FileID: 5812340, FileName: "create-1.21.1-neoforge.jar"}},
-			"jei":             {Name: "Just Enough Items", Version: "19.21.0.247", Scope: "client", Source: domain.LockedSource{Type: "curseforge", ModID: 238222, FileID: 5812400, FileName: "jei-1.21.1-neoforge.jar"}},
-			"server-enhanced": {Name: "Server Enhanced Mod", Version: "1.4.2", Scope: "server", Source: domain.LockedSource{Type: "github-release", Repo: "orangeboyChen/mc-server-enhanced-mod", Tag: "v1.4.2", AssetName: "serverenhancedmod-1.21.1-neoforge.jar", FileName: "serverenhancedmod-1.21.1-neoforge.jar"}},
+			"create":               {Name: "Create", Version: "6.0.0", Scope: "shared", Source: domain.LockedSource{Type: "curseforge", ModID: 328085, FileID: 5812340, FileName: "create-1.21.1-neoforge.jar"}},
+			"jei":                  {Name: "Just Enough Items", Version: "19.21.0.247", Scope: "client", Source: domain.LockedSource{Type: "curseforge", ModID: 238222, FileID: 5812400, FileName: "jei-1.21.1-neoforge.jar"}},
+			"server-enhanced":      {Name: "Server Enhanced Mod", Version: "1.4.2", Scope: "server", Source: domain.LockedSource{Type: "github-release", Repo: "orangeboyChen/mc-server-enhanced-mod", Tag: "v1.4.2", AssetName: "serverenhancedmod-1.21.1-neoforge.jar", FileName: "serverenhancedmod-1.21.1-neoforge.jar"}},
+			"asset-pattern-object": {Name: "Asset Pattern Object", Version: "1.0.0", Scope: "shared", Source: domain.LockedSource{Type: "github-release", Repo: "example/asset-pattern-object", Tag: "v1.0.0", AssetName: "apobj-1.21.1-neoforge.jar", FileName: "apobj-1.21.1-neoforge.jar"}},
+			"local-mod":            {Name: "Local Mod", Version: "1.0.0", Scope: "client", Source: domain.LockedSource{Type: "local", Path: "./mods/local-mod.jar", FileName: "local-mod.jar"}},
 		},
 	}
 	writeLockFile(dir, "1.21.1", "neoforge", lock)
@@ -168,6 +175,10 @@ func seedBuildCache(dir string) {
 	seedCachedJar(filepath.Join(base, "curseforge", "328085", "5812340", "create-1.21.1-neoforge.jar"))
 	seedCachedJar(filepath.Join(base, "curseforge", "238222", "5812400", "jei-1.21.1-neoforge.jar"))
 	seedCachedJar(filepath.Join(base, "github-release", "orangeboyChen", "mc-server-enhanced-mod", "v1.4.2", "serverenhancedmod-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(base, "github-release", "example", "asset-pattern-object", "v1.0.0", "apobj-1.21.1-neoforge.jar"))
+	localPath := filepath.Join(dir, "mods", "local-mod.jar")
+	Expect(os.MkdirAll(filepath.Dir(localPath), 0755)).To(Succeed())
+	seedCachedJar(localPath)
 }
 
 var _ = Describe("Integration: real packspec + build pipeline", func() {

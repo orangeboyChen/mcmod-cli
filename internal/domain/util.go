@@ -435,6 +435,11 @@ func (s ModSource) RenderURL(modID, fileID int, fileName, version, mcVersion str
 	return ExpandURLPattern(s.URLPattern, modID, fileID, fileName, version, mcVersion)
 }
 
+// DefaultCurseForgeURL returns the standard ForgeCDN URL for a CurseForge file.
+func DefaultCurseForgeURL(fileID int, fileName string) string {
+	return ExpandURLPattern("https://edge.forgecdn.net/files/{fileId4}/{fileNameUrl}", 0, fileID, fileName, "", "")
+}
+
 // ExpandURLPattern substitutes placeholders in a URL template. Supported
 // placeholders:
 //

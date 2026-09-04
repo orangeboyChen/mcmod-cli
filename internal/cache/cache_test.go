@@ -162,3 +162,12 @@ var _ = Describe("Cache hash and check helpers", func() {
 		Expect(string(data)).To(Equal("new"))
 	})
 })
+
+// --- from ResolvedIDPath ---
+
+var _ = Describe("ResolvedIDPath", func() {
+	It("returns the canonical path under .cache/resolved", func() {
+		Expect(ResolvedIDPath("1.21.1", "neoforge")).To(Equal(".cache/resolved/1.21.1-neoforge.json"))
+		Expect(ResolvedIDPath("1.20.4", "fabric")).To(Equal(".cache/resolved/1.20.4-fabric.json"))
+	})
+})

@@ -194,3 +194,94 @@ var _ = Describe("ResolveCurseForgeBySlug via httptest", func() {
 		Expect(src.FileID).To(Equal(100))
 	})
 })
+
+var _ = Describe("ResolveCurseForgeByQuery scoring branches", func() {
+	It("returns the first match when there are multiple equally-scored candidates", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/search") {
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"data": []map[string]any{
+						{"id": 1, "name": "Jei", "slug": "jei"},
+						{"id": 2, "name": "Jei Two", "slug": "jei-2"},
+					},
+				})
+				return
+			}
+			// files endpoint: return one for any id
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": 100, "fileName": "mod.jar", "downloadUrl": "https://x/mod.jar", "gameVersions": []string{"1.21.1"}},
+				},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		src, err := ResolveCurseForgeByQuery("jei", "1.21.1", "neoforge")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(src).NotTo(BeNil())
+	})
+
+	It("errors when two best-scored candidates tie", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": 1, "name": "Jei", "slug": "jei"},
+					{"id": 2, "name": "Jei2", "slug": "jei"},
+				},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		_, err := ResolveCurseForgeByQuery("jei", "1.21.1", "neoforge")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("multiple matches"))
+	})
+})
+
+var _ = Describe("ResolveCurseForgeBySlug with modKey and not found", func() {
+	It("uses the modKey as a request label", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// The X-Netutil-Label header should be set from the modKey.
+			_ = r.Header.Get("X-Netutil-Label")
+			if strings.Contains(r.URL.Path, "/search") {
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"data": []map[string]any{{"id": 1, "name": "X", "slug": "x"}},
+				})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{{"id": 100, "fileName": "x.jar", "downloadUrl": "https://x/x.jar", "gameVersions": []string{"1.21.1"}}},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		src, err := ResolveCurseForgeBySlug("x", "1.21.1", "neoforge", "mykey")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(src).NotTo(BeNil())
+	})
+
+	It("errors when slug does not match anything", func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []map[string]any{},
+			})
+		})
+		srv := httptest.NewServer(mux)
+		DeferCleanup(srv.Close)
+		withRedirectedHTTP(srv.URL)
+
+		_, err := ResolveCurseForgeBySlug("missing", "1.21.1", "neoforge")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("no mod"))
+	})
+})

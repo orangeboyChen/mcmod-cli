@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/service"
-	"github.com/spf13/cobra"
 )
 
 func newLockTreeCmd() *cobra.Command {

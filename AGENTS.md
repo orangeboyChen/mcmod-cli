@@ -250,15 +250,15 @@ responsibility list.
   `BeforeSuite` and run each `It` in a fresh `t.TempDir()`.
 - Subprocess env is always isolated: `HOME=<d>`, `XDG_CONFIG_HOME=<d>`,
   `CURSEFORGE_API_KEY=""` cleared. Never inherit the host environment.
-- Total statement coverage must stay ≥ **80.0%**. New packages and new
-  files should be ≥ 80% too; the maintainer will ask for tests when a
+- Total statement coverage must stay ≥ **90.0%**. New packages and new
+  files should be ≥ 90% too; the maintainer will ask for tests when a
   new public function is added without a corresponding `It` block.
 - Random Ginkgo order is the default. If a CI flake appears, re-run
   with `go test -count=1` and/or `-ginkgo.seed=N` to bisect.
 - HTTP tests use `internal/testutil/fake_http.go`. Do not start a real
   listener per test; reuse the helper.
-- Per-package statement coverage target: **>= 85%**. Total project
-  coverage target: **>= 85%** (sums to >= 85 even when helpers like
+- Per-package statement coverage target: **>= 90%**. Total project
+  coverage target: **>= 90%** (sums to >= 90 even when helpers like
   `internal/testutil` count as 0%).
 
 ### Test File Layout (1:1 source<->test)
@@ -315,7 +315,7 @@ rule, follow this layout per package:
   exercise in unit tests, prefer the existing helpers in
   `internal/testutil` (fake HTTP server, `MkdirTemp`) over skipping the
   branch.
-- The 85% per-package target applies to every package in `internal/`
+- The 90% per-package target applies to every package in `internal/`
   except `internal/testutil` (which is helper-only and explicitly
   excluded). A package below the target is a release blocker.
 
@@ -362,8 +362,8 @@ code or any reported issue blocks the commit. Fix the code (check the
 error, use a `defer` cleanup, remove dead code, simplify the expression,
 add a test) rather than suppressing the linter.
 
-The total statement coverage must be at least `80.0%`. If the total
-drops below 80%, add or extend tests in the same change.
+The total statement coverage must be at least `90.0%`. If the total
+drops below 90%, add or extend tests in the same change.
 
 Review `go.mod` and `go.sum` after `go mod tidy`; do not keep unrelated
 dependency changes.
@@ -578,7 +578,20 @@ Do not add a fourth tier. Do not read keys from `packspec.json`.
 - Path: `releases/v<packVersion>/<packName>-<mc>-<loader>-<loaderVersion>-<target>.zip`
   and the matching `<serverPackName>-...-server.zip` for the server build.
 - `target` ∈ `client`, `server`, `both`. Default `both`.
-- `build-type` ∈ `cf`, `github`, `all`. Default `all`.
+- `build-type` ∈ `cf`, `all`. Default `all`.
+  - `cf` produces a CurseForge modpack zip. It is a **manifest-only**
+    artifact: `manifest.json` + `modlist.html` + `overrides/{config,resourcepacks}/`.
+    The launcher downloads per-mod jars at import time from
+    `manifest.files[]`; the zip does **not** bundle `overrides/mods/`.
+    Single-target: ignores `--target` and always emits the client flavor
+    (CurseForge publishes a single client pack). Implementation lives
+    in `internal/service/build_zip_cf.go`; output path is
+    `releases/v<packVersion>/<packName>-<mc>-<loader>-<loaderVersion>-cf.zip`.
+  - `all` is the default mcmod layout (client/server/both zips with
+    `mods/`, `config/`, `defaultconfigs/`, `resourcepacks/`,
+    `server.properties`).
+  - A `github` (Modrinth `.mrpack`) value is reserved but not yet
+    accepted by the CLI.
 - Cache layout (docs/010-downloader.md):
   `.cache/curseforge/<modId>/<fileId>/<fileName>` and
   `.cache/github-release/<owner>/<repo>/<tag>/<assetName>`.
@@ -589,7 +602,13 @@ Do not add a fourth tier. Do not read keys from `packspec.json`.
 - `packspec.json` lives at the repo root. Do not look for it in
   subdirectories.
 - `.mcmod/config.json` is the project config; created by
-  `mcmod set cf-key ... --project` or `mcmod config set-cf-key ...`.
+  `mcmod set cf-key ... --project` or `mcmod config set-cf-key ...`. Holds
+  the project-level CurseForge API key.
+- `.cache/resolved/<mcVersion>-<loader>.json` is the resolver's id cache
+  (mod key → modId/fileId). Written by `mcmod lock` after a successful
+  resolver run; read on the next run to skip the CF search step. Stale
+  entries are tolerable because lock re-validates the file. Treat as
+  transient cache, not project state.
 - `~/.config/mcmod/config.json` is the user config; created by
   `mcmod set cf-key ...` (default) or `--global`.
 - `.env` is for local development only and **must** stay in `.gitignore`.

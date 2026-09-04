@@ -11,10 +11,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/cache"
 
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/resolver"
@@ -126,9 +129,9 @@ func parseVersionFromFileName(name string) string {
 
 // resolvedCache maps mod key -> known good modId/fileId/fileName so lock can
 // skip the CurseForge search step on subsequent runs. The cache lives at
-// .mcmod/resolved-<mc>-<loader>.json. It is best-effort: a stale entry (file
-// removed upstream) is fine because BuildLock re-validates the file via
-// findCurseForgeFile before trusting it.
+// .cache/resolved/<mc>-<loader>.json. It is best-effort: a stale entry
+// (file removed upstream) is fine because BuildLock re-validates the file
+// via findCurseForgeFile before trusting it.
 type resolvedCache map[string]resolvedEntry
 
 type resolvedEntry struct {
@@ -142,7 +145,7 @@ type resolvedEntry struct {
 }
 
 func resolvedCachePath(mcVersion, loader string) string {
-	return filepath.Join(".mcmod", fmt.Sprintf("resolved-%s-%s.json", mcVersion, loader))
+	return cache.ResolvedIDPath(mcVersion, loader)
 }
 
 func loadResolvedCache(mcVersion, loader string) resolvedCache {
@@ -159,14 +162,18 @@ func loadResolvedCache(mcVersion, loader string) resolvedCache {
 }
 
 func saveResolvedCache(mcVersion, loader string, c resolvedCache) error {
-	if err := os.MkdirAll(".mcmod", 0700); err != nil {
+	if err := cache.EnsureCacheDir(); err != nil {
+		return err
+	}
+	path := resolvedCachePath(mcVersion, loader)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(resolvedCachePath(mcVersion, loader), data, 0600)
+	return os.WriteFile(path, data, 0600)
 }
 
 // ListMods returns a formatted listing of mods grouped by scope.
@@ -236,14 +243,23 @@ func ListMods(spec *domain.PackSpec) (string, error) {
 //   - BuildLock returns a non-nil error only when the resolver pipeline is
 //     structurally broken (e.g. unknown source type) so the lock file is
 //     always persisted when at least one mod resolved.
-func BuildLock(spec *domain.PackSpec, mcVersion, loader string) (*domain.PackLock, error) {
+func BuildLock(spec *domain.PackSpec, mcVersion, loader string) (*domain.PackLock, int, error) {
 	return BuildLockWithExisting(spec, mcVersion, loader, nil)
 }
 
 // BuildLockWithExisting is BuildLock plus an optional previously-written lock
 // file. Mods already present in `existing` are skipped (cached lock entries),
 // so the resolver is only invoked for new or previously-failed entries.
-func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, existing *domain.PackLock) (*domain.PackLock, error) {
+//
+// The second return value is the number of mods in spec.Mods that the
+// resolver failed to resolve (zero or more). It is reported separately
+// from `error` so the caller can decide whether a partial lock is fatal:
+// the lock file is still written so the operator can see which mods
+// succeeded alongside the failure list, but callers (like the CLI) can
+// still surface the failure to stderr and exit non-zero. The function
+// only returns a non-nil error when the resolver pipeline is structurally
+// broken (e.g. unknown source type), mirroring BuildLock's contract.
+func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, existing *domain.PackLock) (*domain.PackLock, int, error) {
 	loaderVer := ""
 	for _, ln := range spec.LoaderName {
 		name, ver := domain.ParseLoaderName(ln)
@@ -259,7 +275,7 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 		Mods:             make(map[string]domain.LockedMod),
 	}
 
-	// Load the resolved-id cache (.mcmod/resolved-<mc>-<loader>.json) so we
+	// Load the resolved-id cache (.cache/resolved/<mc>-<loader>.json) so we
 	// can skip the expensive CurseForge search step on subsequent runs. The
 	// cache is keyed by spec mod key; a hit lets the worker construct the
 	// LockedSource directly from the cached modId/fileId/fileName.
@@ -460,5 +476,5 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 		}
 		fmt.Fprintf(os.Stderr, "lock: failed mods are NOT in the lock file; fix the underlying problem and re-run `mcmod lock`\n")
 	}
-	return lf, nil
+	return lf, len(failures), nil
 }

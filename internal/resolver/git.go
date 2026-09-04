@@ -7,9 +7,10 @@ package resolver
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/netutil"
-	"net/http"
 )
 
 // ResolveGitPackage clones a git repo and resolves it to a locked source.

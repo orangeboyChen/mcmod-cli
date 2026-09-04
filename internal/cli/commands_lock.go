@@ -11,9 +11,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/service"
-	"github.com/spf13/cobra"
 )
 
 func newLockCmd() *cobra.Command {
@@ -71,7 +72,7 @@ Subcommands:
 					// Incremental lock: carry over mods that already resolved
 					// in a previous run so we only re-resolve new or failed mods.
 					existing, _ := service.ReadLockFile(service.LockFilePath(v, l))
-					lock, err := service.BuildLockWithExisting(spec, v, l, existing)
+					lock, resolveFailures, err := service.BuildLockWithExisting(spec, v, l, existing)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "error: lock %s %s: %v\n", v, l, err)
 						failed = true
@@ -87,6 +88,17 @@ Subcommands:
 						continue
 					}
 					fmt.Printf("locked %s %s -> locks/dependencies/%s-%s.json\n", v, l, v, l)
+					if resolveFailures > 0 {
+						// Mods that the resolver could not pin are
+						// intentionally left out of the lock file (the
+						// file is a clean source of truth per
+						// docs/003-lock-files.md). Surface the partial
+						// failure as a hard error so a downstream
+						// `mcmod build` does not silently drop the
+						// missing mod.
+						fmt.Fprintf(os.Stderr, "error: lock %s %s: %d mod(s) failed to resolve; lock file is partial\nhint: see the per-mod failure list above and re-run `mcmod lock %s %s` once they are fixed\n", v, l, resolveFailures, v, l)
+						failed = true
+					}
 				}
 			}
 			if failed {
@@ -512,7 +524,7 @@ func runLockUpdateBulk(args []string) error {
 			failed = true
 			continue
 		}
-		lock, err := service.BuildLockWithExisting(spec, mcVersion, l, nil)
+		lock, resolveFailures, err := service.BuildLockWithExisting(spec, mcVersion, l, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: lock update %s %s: %v\n", mcVersion, l, err)
 			failed = true
@@ -524,6 +536,14 @@ func runLockUpdateBulk(args []string) error {
 			continue
 		}
 		fmt.Printf("updated lock %s/%s (%d mods)\n", mcVersion, l, len(lock.Mods))
+		if resolveFailures > 0 {
+			// Partial lock: see docs/003-lock-files.md and the matching
+			// block in `lock` (no subcommand). Surface the count and
+			// fail so a downstream `mcmod build` does not silently
+			// drop the missing mod.
+			fmt.Fprintf(os.Stderr, "error: lock update %s %s: %d mod(s) failed to resolve; lock file is partial\nhint: see the per-mod failure list above and re-run `mcmod lock update %s %s` once they are fixed\n", mcVersion, l, resolveFailures, mcVersion, l)
+			failed = true
+		}
 	}
 	if failed {
 		return fmt.Errorf("lock update failed for one or more loaders")

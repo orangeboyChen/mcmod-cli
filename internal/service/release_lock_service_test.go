@@ -5,9 +5,10 @@
 package service
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"os"
 
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )

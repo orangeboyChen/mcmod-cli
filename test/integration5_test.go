@@ -13,6 +13,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
@@ -342,7 +343,7 @@ var _ = Describe("Integration5: tree resolution + lock path coverage", func() {
 				"my-mod": map[string]interface{}{
 					"name":   "My Mod",
 					"scope":  "shared",
-					"source": map[string]interface{}{"type": "github-release", "repo": "o/r", "tag": "v1", "assetPattern": "m.jar"},
+					"source": map[string]interface{}{"type": "github-release", "repo": "o/r", "tag": "v1", "assetPattern": "m-*.jar"},
 				},
 			})
 			stdout, _, err := runMcmod(d, "list")

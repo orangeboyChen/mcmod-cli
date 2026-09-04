@@ -6,6 +6,7 @@ package domain
 
 import (
 	"encoding/json"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -367,5 +368,30 @@ var _ = Describe("ModSource URL helpers", func() {
 	It("RenderURL returns empty when neither URL nor URLPattern is set", func() {
 		s := ModSource{}
 		Expect(s.RenderURL(0, 0, "", "", "")).To(BeEmpty())
+	})
+})
+
+var _ = Describe("ModSource UnmarshalJSON", func() {
+	It("unmarshals with no assetPattern via the primary path", func() {
+		data := []byte(`{"type":"local","path":"./x.jar","fileName":"x.jar"}`)
+		var s ModSource
+		Expect(json.Unmarshal(data, &s)).To(Succeed())
+		Expect(s.Type).To(Equal("local"))
+		Expect(s.Path).To(Equal("./x.jar"))
+	})
+
+	It("unmarshals assetPattern as a string fallback", func() {
+		data := []byte(`{"type":"github-release","repo":"o/r","tag":"v1","assetPattern":"single.jar"}`)
+		var s ModSource
+		Expect(json.Unmarshal(data, &s)).To(Succeed())
+		Expect(s.AssetPattern).To(Equal("single.jar"))
+	})
+
+	It("unmarshals assetPatternByLoader object fallback", func() {
+		data := []byte(`{"type":"github-release","repo":"o/r","tag":"v1","assetPattern":{"fabric":"f.jar","neoforge":"n.jar"}}`)
+		var s ModSource
+		Expect(json.Unmarshal(data, &s)).To(Succeed())
+		Expect(s.AssetPatternByLoader["fabric"]).To(Equal("f.jar"))
+		Expect(s.AssetPatternByLoader["neoforge"]).To(Equal("n.jar"))
 	})
 })

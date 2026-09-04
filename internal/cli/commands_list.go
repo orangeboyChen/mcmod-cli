@@ -7,9 +7,10 @@ package cli
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/service"
-	"github.com/spf13/cobra"
 )
 
 func newListCmd() *cobra.Command {

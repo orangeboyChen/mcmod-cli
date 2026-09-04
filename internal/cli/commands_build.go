@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/service"
-	"github.com/spf13/cobra"
 )
 
 func newBuildCmd() *cobra.Command {
@@ -26,10 +27,15 @@ Examples:
   mcmod build              # Build latest for all loaders
   mcmod build 1.21.1 neoforge --target both`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// --build-type accepts "all" (default) and "cf". The output of
-			// "cf" is identical to the default for now; a future change will
-			// emit a CurseForge modpack layout here. Both values are accepted
-			// today so the flag is exercisable from the CLI and from tests.
+			// --build-type accepts "all" (default) and "cf".
+			//   all → produce the default mcmod client/server zip(s).
+			//   cf  → produce a single CurseForge-compatible modpack zip
+			//         (manifest.json + modlist.html + overrides/). Only
+			//         shared+client scope and curseforge-sourced mods go
+			//         into the layout; non-cf mods and mods missing
+			//         modId/fileId are reported on stderr and skipped.
+			// A "github" (Modrinth .mrpack) value is reserved by the docs
+			// but not yet accepted here.
 			if buildType != "" && buildType != "all" && buildType != "cf" {
 				fmt.Fprintf(os.Stderr, "error: build: invalid --build-type %q (must be \"all\" or \"cf\")\n", buildType)
 				return fmt.Errorf("build: invalid --build-type %q", buildType)
@@ -78,23 +84,33 @@ Examples:
 				if t == "both" {
 					targets = []string{"client", "server"}
 				}
-				// Per spec 7.5 success stdout, print "built <mc> <loader>" then
-				// one "artifact <target>: <path>" line per produced zip.
-				fmt.Printf("built %s %s\n", mcVersion, ld)
+				// Per spec 7.5 success stdout, print "built <mc> <loader>" only
+				// after every requested artifact has been produced.
 				buildErr := false
-				for _, tInner := range targets {
-					out, err := service.BuildArtifactAndReturnPath(spec, lock, mcVersion, tInner, force)
+				if buildType == "cf" {
+					out, err := service.BuildArtifactCF(spec, lock, mcVersion, force)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "error: build %s %s %s: %v\n", mcVersion, ld, tInner, err)
+						fmt.Fprintf(os.Stderr, "error: build %s %s cf: %v\n", mcVersion, ld, err)
 						buildErr = true
-						break
+					} else {
+						fmt.Printf("artifact cf: %s\n", out)
 					}
-					fmt.Printf("artifact %s: %s\n", tInner, out)
+				} else {
+					for _, tInner := range targets {
+						out, err := service.BuildArtifactAndReturnPath(spec, lock, mcVersion, tInner, force)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "error: build %s %s %s: %v\n", mcVersion, ld, tInner, err)
+							buildErr = true
+							break
+						}
+						fmt.Printf("artifact %s: %s\n", tInner, out)
+					}
 				}
 				if buildErr {
 					failed = true
 					continue
 				}
+				fmt.Printf("built %s %s\n", mcVersion, ld)
 			}
 			if failed {
 				return fmt.Errorf("build failed for one or more (minecraftVersion, loader) pairs")
@@ -105,7 +121,7 @@ Examples:
 	cmd.Flags().StringVar(&minecraftVersion, "mc-version", "", "Minecraft version")
 	cmd.Flags().StringVar(&loader, "loader", "", "Loader")
 	cmd.Flags().StringVar(&target, "target", "both", "Build target: client, server, both")
-	cmd.Flags().StringVar(&buildType, "build-type", "", "Build type: cf, all")
+	cmd.Flags().StringVar(&buildType, "build-type", "", "Build type: cf, all (cf emits a CurseForge modpack layout with manifest.json, modlist.html, and overrides/)")
 	cmd.Flags().BoolVar(&force, "force", false, "Force overwrite existing artifacts")
 
 	return cmd

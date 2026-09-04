@@ -10,9 +10,9 @@ Description: Test coverage and smoke tests.
 - `internal/cli/`: Coverage and integration tests
 
 ## Coverage
-- Target: 80%+ statement coverage
+- Target: 90%+ statement coverage (raised from 80% on 2026-06-21)
 - Run: `go test ./... -coverprofile=coverage.out`
-- Current: 83.2% statement coverage (verified 2026-06-20)
+- Current: see `go tool cover -func=coverage.out` (must remain >= 90.0%)
 - ~980 Ginkgo specs across the full test tree:
   - `test/`: 476 (smoke 1-6 + integration 1-5) — subprocess-driven end-to-end CLI
   - `internal/cli/`: 133 (coverage, extra, mass, boost, push, last80)
@@ -353,7 +353,7 @@ error path documented in `specification.md` is invoked end-to-end.
 
 ### Coverage Requirements
 
-- [x] Total statement coverage remains `>= 80.0%` after every change.
+- [x] Total statement coverage remains `>= 90.0%` after every change.
 - [x] `go mod tidy` produces no unrelated dependency changes.
 - [x] `gofmt` produces no diffs on the new test files.
 - [x] `golint ./...` is run; pre-existing warnings are not regressions.

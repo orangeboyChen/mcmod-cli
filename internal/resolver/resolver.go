@@ -67,6 +67,8 @@ func ResolveSource(src domain.ModSource, mcVersion, loader string, modKey ...str
 		ver := parseVersionFromFileName(ls.FileName)
 		if rendered := src.RenderURL(ls.ModID, ls.FileID, ls.FileName, ver, mcVersion); rendered != "" {
 			ls.URL = rendered
+		} else {
+			ls.URL = domain.DefaultCurseForgeURL(ls.FileID, ls.FileName)
 		}
 		return ls, nil
 	case "github-release":

@@ -7,8 +7,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/orangeboyChen/mcmod-cli/internal/service"
 	"github.com/spf13/cobra"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/service"
 )
 
 func newConfigCmd() *cobra.Command {

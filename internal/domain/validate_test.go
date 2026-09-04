@@ -446,3 +446,51 @@ var _ = Describe("ValidateSpec source validation", func() {
 		Expect(ValidateSpec(spec)).NotTo(Succeed())
 	})
 })
+
+var _ = Describe("ValidateSpec more branches", func() {
+	It("rejects missing minecraftVersion", func() {
+		err := ValidateSpec(PackSpec{
+			PackName: "p", PackVersion: "1", LoaderName: []string{"neoforge:1"},
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("minecraftVersion"))
+	})
+
+	It("rejects empty loaderName array", func() {
+		err := ValidateSpec(PackSpec{
+			PackName: "p", PackVersion: "1", MinecraftVersion: "1.21.1",
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("loaderName"))
+	})
+
+	It("rejects mod with empty source type", func() {
+		err := ValidateSpec(PackSpec{
+			PackName: "p", PackVersion: "1", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge"},
+			Mods: map[string]ModSpec{"a": {Name: "A"}},
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("empty source type"))
+	})
+
+	It("rejects mod with per-loader unsupported loader", func() {
+		err := ValidateSpec(PackSpec{
+			PackName: "p", PackVersion: "1", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge"},
+			Mods: map[string]ModSpec{
+				"a": {Name: "A", Loader: []string{"bukkit"}, Source: ModSource{Type: "local"}},
+			},
+		})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("unsupported loader"))
+	})
+
+	It("accepts valid per-loader filter", func() {
+		err := ValidateSpec(PackSpec{
+			PackName: "p", PackVersion: "1", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge"},
+			Mods: map[string]ModSpec{
+				"a": {Name: "A", Loader: []string{"neoforge"}, Source: ModSource{Type: "local", Path: "./x.jar"}},
+			},
+		})
+		Expect(err).NotTo(HaveOccurred())
+	})
+})

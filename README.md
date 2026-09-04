@@ -27,6 +27,7 @@ it into per-loader lock files, signed zips, and a release index.
 - `mcmod lock release` maintains `locks/releases/<mcVersion>.json`
 - `mcmod tree` renders the resolved dependency tree
 - Cross-platform binaries via `go install` or GitHub releases
+- The short executable name `mcm` is also available (`go install ./cmd/mcm`).
 
 ## Quick Start
 
@@ -93,7 +94,8 @@ locks/
   releases/<mc>.json                # build release index
 releases/                           # built zips (gitignored)
 .cache/                             # jar download cache (gitignored)
-.mcmod/                             # project-level CLI config (gitignored)
+.mcmod/                             # project-level CLI config: cfKey (gitignored)
+.cache/resolved/                    # resolver id cache: mod key -> modId/fileId (gitignored)
 internal/
   cli/                              # cobra commands
   domain/                           # data models, validation, store
@@ -123,6 +125,33 @@ cmd/mcmod/                          # CLI entry point
   sources are resolved.
 - [docs/008-build-pipeline.md](./docs/008-build-pipeline.md) — build
   pipeline and validation rules.
+
+## TODO
+
+`mcmod build` only packages the `mods/` directory today. The following
+modpack artifacts are intentionally out of scope and not yet generated:
+
+- **Mods** — fully supported. See `packspec.json` schema and lock/release
+  docs.
+- **Shaderpacks** (`shaderpacks/`) — not supported. No source type, no
+  resolver, no zip entry. There is no way to declare or pin a shaderpack
+  in `packspec.json` yet.
+- **Resourcepacks** (`resourcepacks/`) — the client zip copies a project-root
+  `resourcepacks/` directory verbatim when it exists, but the resolver and
+  lock pipeline do not yet track packspec-level resourcepack entries.
+- **Datapacks** (`datapacks/`) — not supported.
+- **World saves** — not supported.
+- **CurseForge modpack layout** (`manifest.json` + `modlist.html` +
+  `overrides/{config,resourcepacks}/`) — implemented. `mcmod build
+  --build-type cf` produces a manifest-only zip (no per-mod jars; the
+  launcher downloads them at import time from `manifest.files[]`).
+  See `docs/002-cli-overview.md` for the exact contract.
+- **Modrinth `.mrpack` layout** — reserved by the docs but not yet
+  accepted by the CLI.
+
+Track these in issues; PRs that close any of them must update
+`docs/002-cli-overview.md` and `AGENTS.md` in the same change per the
+"docs win" rule.
 
 ## Building
 

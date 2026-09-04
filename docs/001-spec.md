@@ -39,6 +39,11 @@ file. The exact field set depends on the source `type`.
   placeholders that are filled at lock time. See "URLPattern Placeholders"
   below for the full list.
 
+For CurseForge sources, when neither `url` nor `urlPattern` is set, mcmod
+uses `https://edge.forgecdn.net/files/{fileId4}/{fileName}` by default.
+Set `MCMOD_CURSEFORGE_USE_DOWNLOAD_URL=1` to opt into the rate-limited
+`/download-url` API during download.
+
 ### CurseForge Source
 - `type: "curseforge"`
 - `query` (string, optional): Human-readable mod name. Used by the resolver

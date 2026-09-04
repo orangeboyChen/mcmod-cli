@@ -6,7 +6,9 @@ Description: File download and caching.
 # Downloader
 
 ## Sources
-- CurseForge: Downloads via API download URL
+- CurseForge: Downloads via `edge.forgecdn.net/files/{fileId4}/{fileName}`
+  by default; set `MCMOD_CURSEFORGE_USE_DOWNLOAD_URL=1` to use the API
+  `/download-url` endpoint instead
 - GitHub Release: Downloads via direct asset URL
 - Local: No download needed (file reference only)
 

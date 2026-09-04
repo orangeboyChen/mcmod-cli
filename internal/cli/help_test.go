@@ -5,9 +5,10 @@
 package cli
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"os"
 )
 
 var _ = Describe("help", func() {
