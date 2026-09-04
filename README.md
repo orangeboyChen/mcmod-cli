@@ -19,6 +19,11 @@ mcmod lock 1.21.1 neoforge
 mcmod build 1.21.1 neoforge
 ```
 
+Builds validate every selected mod JAR for duplicate classes, unreadable files,
+and missing required loader metadata dependencies before creating output. The
+error report lists all causes together, and failed builds leave no new artifact.
+CurseForge builds may download client JARs on their first run for this check.
+
 The editable input is `packspec.json` at the project root. Resolved locks are
 written to `locks/dependencies/`; build artifacts are written to `releases/`.
 

@@ -22,8 +22,8 @@ Jar 解析与下载、构建产物（client / server zip）和发布索引。
   **URL**（用户指定下载地址）
 - `mcmod lock` 解析 source、对照已有 lock 跑增量对账（`kept / added /
   removed / failed`），写入 `locks/dependencies/<mcVersion>-<loader>.json`
-- `mcmod build` 读取 lock、跑 jar 元数据校验（必需依赖缺失、class 冲突），
-  生成 client / server zip
+- `mcmod build` 读取 lock、校验所有目标 jar（汇总 class 冲突、损坏 jar 和元数据
+  必需依赖缺失），生成 client / server zip
 - `mcmod lock release` 维护 `locks/releases/<mcVersion>.json`
 - `mcmod tree` 渲染已解析的依赖树
 - 跨平台二进制，可通过 `go install` 或 GitHub Releases 安装

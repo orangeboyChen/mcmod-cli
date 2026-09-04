@@ -140,7 +140,10 @@ var _ = Describe("CLI", func() {
 		Expect(cmd.Execute()).To(Succeed())
 	})
 
-	It("set cf-key writes project config", func() {
+	It("set cf-key writes user config", func() {
+		configDir := GinkgoT().TempDir()
+		Expect(os.Setenv("XDG_CONFIG_HOME", configDir)).To(Succeed())
+		DeferCleanup(func() { _ = os.Unsetenv("XDG_CONFIG_HOME") })
 		dir := GinkgoT().TempDir()
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)

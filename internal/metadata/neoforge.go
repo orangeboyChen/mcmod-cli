@@ -43,10 +43,13 @@ func ReadNeoForgeMetadata(jarPath string) (*ModInfo, error) {
 			parsed := parseSimpleTOML(data)
 			if modID, ok := parsed["modid"].(string); ok {
 				info.ModID = modID
+			} else if modID, ok := parsed["modId"].(string); ok {
+				info.ModID = modID
 			}
 			if ver, ok := parsed["version"].(string); ok {
 				info.Version = ver
 			}
+			info.Dependencies = append(info.Dependencies, parseNeoForgeDependencies(data)...)
 		}
 	}
 
@@ -54,6 +57,41 @@ func ReadNeoForgeMetadata(jarPath string) (*ModInfo, error) {
 		return nil, fmt.Errorf("neoforge: no modid found in jar metadata")
 	}
 	return &info, nil
+}
+
+func parseNeoForgeDependencies(data []byte) []DepInfo {
+	lines := strings.Split(string(data), "\n")
+	var result []DepInfo
+	current := -1
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[[dependencies.") {
+			result = append(result, DepInfo{Required: true})
+			current = len(result) - 1
+			continue
+		}
+		if current < 0 || !strings.Contains(line, "=") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		key := strings.TrimSpace(parts[0])
+		value := strings.Trim(strings.TrimSpace(parts[1]), "\"")
+		switch key {
+		case "modId":
+			result[current].ModID = value
+		case "mandatory":
+			result[current].Required = value != "false"
+		case "versionRange":
+			result[current].Ref = value
+		}
+	}
+	filtered := result[:0]
+	for _, dep := range result {
+		if dep.ModID != "" {
+			filtered = append(filtered, dep)
+		}
+	}
+	return filtered
 }
 
 func parseSimpleTOML(data []byte) map[string]interface{} {

@@ -5,6 +5,8 @@
 package cli
 
 import (
+	"archive/zip"
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -13,6 +15,17 @@ import (
 
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
+
+func writeCLIJar(path string) {
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	e, err := w.Create("META-INF/test.txt")
+	Expect(err).NotTo(HaveOccurred())
+	_, err = e.Write([]byte("test"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(w.Close()).To(Succeed())
+	Expect(os.WriteFile(path, buf.Bytes(), 0644)).To(Succeed())
+}
 
 var _ = Describe("build", func() {
 	It("build without spec errors", func() {
@@ -42,7 +55,7 @@ var _ = Describe("build", func() {
 		// Stage a cached jar at the path resolveModJar expects.
 		cached := filepath.Join(dir, ".mcmod", "cache", "curseforge", "100", "200", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
-		Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
+		writeCLIJar(cached)
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
 			Loader: "neoforge", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{
@@ -61,12 +74,12 @@ var _ = Describe("build", func() {
 		// Seed a cached jar for the curseforge mod so resolveModJar succeeds.
 		cached := filepath.Join(dir, ".mcmod", "cache", "curseforge", "100", "200", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
-		Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
+		writeCLIJar(cached)
 		// Seed a cached jar for the github-release mod so its
 		// overrides/mods/<key>/<jar> bundle succeeds without network.
 		ghCached := filepath.Join(dir, ".mcmod", "cache", "github-release", "o", "r", "v1", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(ghCached), 0755)).To(Succeed())
-		Expect(os.WriteFile(ghCached, []byte("ghjar"), 0644)).To(Succeed())
+		writeCLIJar(ghCached)
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
 			Loader: "neoforge", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{
@@ -90,7 +103,7 @@ var _ = Describe("build", func() {
 		dir := chdirTemp(`{"packName":"b","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
 		ensureLocksDir(dir)
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("jar"), 0644)).To(Succeed())
+		writeCLIJar(jar)
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
 			Loader: "neoforge", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{
@@ -106,7 +119,7 @@ var _ = Describe("build", func() {
 		dir := chdirTemp(`{"packName":"b","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
 		ensureLocksDir(dir)
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("jar"), 0644)).To(Succeed())
+		writeCLIJar(jar)
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
 			Loader: "neoforge", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{

@@ -34,6 +34,7 @@ func ParseFabricDepends(raw json.RawMessage) []DepInfo {
 		}
 		result = append(result, DepInfo{
 			ModID:    key,
+			Ref:      s,
 			Required: required,
 		})
 	}

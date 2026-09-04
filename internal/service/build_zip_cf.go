@@ -125,6 +125,21 @@ func BuildArtifactCF(spec *domain.PackSpec, lock *domain.PackLock, mcVersion str
 	if len(manifestMods) == 0 {
 		return "", fmt.Errorf("build cf: no curseforge-sourced mods in lock (skipped %d non-cf or modid-less entries)", len(skipped))
 	}
+	modFiles := make(map[string]string)
+	for _, key := range bc.modsForTarget("client") {
+		source := bc.Lock.Mods[key].Source
+		if source.Type == "curseforge" && (source.ModID == 0 || source.FileID == 0 || source.FileName == "") {
+			continue
+		}
+		jarPath, err := bc.resolveModJar(key, bc.Lock.Mods[key])
+		if err != nil {
+			return "", fmt.Errorf("build cf: resolve mod %s: %w", key, err)
+		}
+		modFiles[key] = jarPath
+	}
+	if err := validateModFiles(bc, modFiles); err != nil {
+		return "", err
+	}
 
 	f, err := os.Create(out)
 	if err != nil {
@@ -157,16 +172,7 @@ func BuildArtifactCF(spec *domain.PackSpec, lock *domain.PackLock, mcVersion str
 	bundled := []string{}
 	for _, ref := range bc.nonCFModsForBuild() {
 		allRefs = append(allRefs, ref)
-		jarPath, err := bc.resolveModJar(ref.Key, bc.Lock.Mods[ref.Key])
-		if err != nil {
-			// Fail the build: every shared+client non-cf mod must land
-			// inside overrides/mods/<key>/<jar> or the CurseForge
-			// launcher will silently drop the mod at import time.
-			// Reporting on stderr and shipping a partial zip is worse
-			// than a hard error here because the user would not notice
-			// the missing mod until they opened the modpack in-game.
-			return "", fmt.Errorf("build cf: bundle non-cf mod %s into overrides/mods/: %w\nhint: run `mcmod lock %s %s` and re-run build, or check that the asset is published on the source repo", ref.Key, err, bc.McVersion, bc.Loader)
-		}
+		jarPath := modFiles[ref.Key]
 		base := filepath.Base(jarPath)
 		entry := filepath.ToSlash(filepath.Join("overrides", "mods", ref.Key, base))
 		if err := addFileToZip(w, jarPath, entry); err != nil {

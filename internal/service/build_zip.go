@@ -41,10 +41,7 @@ func (bc *buildContext) buildZip(target, path string, modFiles map[string]string
 }
 
 func (bc *buildContext) buildZipWith(target, path string, modFiles map[string]string, force bool) error {
-	if err := detectClassConflicts(modFiles); err != nil {
-		return err
-	}
-	if err := detectMissingRequiredDeps(bc, modFiles); err != nil {
+	if err := validateModFiles(bc, modFiles); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
