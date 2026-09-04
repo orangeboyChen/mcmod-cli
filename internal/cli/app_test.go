@@ -10,6 +10,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
 var _ = Describe("Run() exits non-zero on error", func() {
@@ -55,6 +57,24 @@ var _ = Describe("CLI", func() {
 		cmd.SetOut(buf)
 		cmd.SetArgs([]string{"version"})
 		Expect(cmd.Execute()).To(Succeed())
+	})
+
+	It("short version flag prints the release version", func() {
+		cmd := NewApp()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"-v"})
+		Expect(cmd.Execute()).To(Succeed())
+		Expect(buf.String()).To(Equal("mcmod version " + domain.Version + "\n"))
+	})
+
+	It("long version flag prints the release version", func() {
+		cmd := NewApp()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"--version"})
+		Expect(cmd.Execute()).To(Succeed())
+		Expect(buf.String()).To(Equal("mcmod version " + domain.Version + "\n"))
 	})
 
 	It("list in temp dir with packspec works", func() {

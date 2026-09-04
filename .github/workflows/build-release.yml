@@ -1,0 +1,153 @@
+# File: .github/workflows/build-release.yml
+# Created: 2026-09-04
+# Description: Reusable native-runner binary build and GitHub Release workflow for mcm.
+
+name: Build Release
+
+on:
+  workflow_call:
+    inputs:
+      prerelease:
+        description: Whether the GitHub Release is a prerelease.
+        required: true
+        type: boolean
+      tag:
+        description: Version tag to build and publish.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    name: Validate source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Run tests
+        run: go test ./...
+      - name: Build command entrypoints
+        run: go build ./cmd/mcm ./cmd/mcmod
+
+  build:
+    name: ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux
+            arch: amd64
+            extension: ''
+            archive: tar.gz
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            extension: ''
+            archive: tar.gz
+          - runner: windows-latest
+            platform: windows
+            arch: amd64
+            extension: .exe
+            archive: zip
+          - runner: macos-13
+            platform: macos
+            arch: amd64
+            extension: ''
+            archive: tar.gz
+          - runner: macos-14
+            platform: macos
+            arch: arm64
+            extension: ''
+            archive: tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Build mcm
+        shell: bash
+        run: go build -o mcm${{ matrix.extension }} ./cmd/mcm
+      - name: Package Unix binary
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          tar -czf "mcmod_cli_${version}_${{ matrix.platform }}_${{ matrix.arch }}.tar.gz" mcm
+      - name: Package Windows binary
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          Compress-Archive -Path mcm.exe -DestinationPath "mcmod_cli_${version}_windows_amd64.zip"
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcmod_cli_${{ inputs.tag }}_${{ matrix.platform }}_${{ matrix.arch }}
+          path: mcmod_cli_*_${{ matrix.platform }}_${{ matrix.arch }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [checks, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release notes
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          previous_tag="$(git tag --merged "$TAG" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -Fxv "$TAG" | head -n 1 || true)"
+          {
+            echo "## Changes"
+            if [ -n "$previous_tag" ]; then
+              git log --format='- %s — %an' "$previous_tag..$TAG"
+            else
+              git log --format='- %s — %an' "$TAG"
+            fi
+            echo
+            echo "## Assets"
+            version="${TAG#v}"
+            find dist -maxdepth 1 -type f -printf '%f\n' | sort | sed 's/^/- `/' | sed 's/$/`/'
+          } > release-notes.md
+      - name: Create checksums
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          (cd dist && sha256sum mcmod_cli_*_*.tar.gz mcmod_cli_*_*.zip > "mcmod_cli_${version}_checksums.txt")
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          prerelease_args=()
+          if [ "$PRERELEASE" = "true" ]; then
+            prerelease_args+=(--prerelease)
+          fi
+          gh release create "$TAG" dist/* --title "$TAG" --notes-file release-notes.md "${prerelease_args[@]}"

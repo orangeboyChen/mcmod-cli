@@ -22,6 +22,12 @@ mcmod build 1.21.1 neoforge
 The editable input is `packspec.json` at the project root. Resolved locks are
 written to `locks/dependencies/`; build artifacts are written to `releases/`.
 
+`mcm version`, `mcm -v`, and `mcm --version` print the hard-coded CLI version.
+Stable and beta release workflows build native Linux amd64/arm64, Windows
+amd64, and macOS amd64/arm64 archives. Stable bumps create a labeled PR;
+beta publishes a `vX.Y.Z-canary.N` prerelease. Both accept an optional
+`base_version` (`x.y.z`), which is used directly when supplied.
+
 ## Recursive Git packspecs
 
 A Git source points to a repository containing its own `packspec.json`:

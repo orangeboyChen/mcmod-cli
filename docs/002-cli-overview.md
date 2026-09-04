@@ -21,6 +21,9 @@ mcmod validate [--spec <path>] [--lock <path>] [--release-index <path>]
 mcmod version
 ```
 
+The root command also accepts `-v` and `--version`; both flags print the same
+hard-coded release version as `mcmod version`.
+
 `lock`, `build`, and `tree` use the packspec defaults when version or loader
 is omitted. `--project` and `--global` are compatibility flags: all key
 commands write the current project file `.mcmod/config.json`.
