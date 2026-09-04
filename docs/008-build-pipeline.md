@@ -1,32 +1,23 @@
-<!--
-File: docs/008-build-pipeline.md
-Created: 2026-06-20
-Description: Build artifact generation pipeline.
--->
+<!-- File: docs/008-build-pipeline.md; Created: 2026-09-04; Description: Build pipeline. -->
 # Build Pipeline
 
-1. Read packspec.json
-2. Load dependency lock for target loader
-3. Download mod jars (if not cached)
-4. Validate every selected jar before writing an artifact
-5. Assemble client/server mods based on scope
-6. Package into ZIP archives
-7. Update release index
+The pipeline reads the root spec, loads the selected lock, resolves cached
+files, validates jars, and packages client/server artifacts. `--build-type
+all` produces mcmod zips; `--build-type cf` produces a manifest-only
+CurseForge zip. An incomplete lock fails before artifact output.
 
-Builds require a complete dependency lock: every mod in `packspec.json` must
-have a lock entry, and every selected mod jar must resolve successfully. If
-the lock is partial or a jar cannot be resolved, the build exits non-zero and
-writes no artifact for that target.
+Before writing any artifact, the build scans every selected mod JAR. It rejects
+duplicate `.class` paths, unreadable JARs, and missing required Fabric/NeoForge
+dependencies. Errors are aggregated into one stable report listing all
+conflicting classes, owning mods/JARs, and every missing dependency. CurseForge
+builds resolve and validate all client JARs first, so manifest-only output
+cannot bypass these checks. A failed validation leaves no new artifact.
 
-Before packaging, `mcmod build` scans every selected jar. It reports all
-duplicate `.class` paths together with every owning mod and jar, all jars that
-cannot be opened, and all required Fabric/NeoForge dependencies missing from
-the target set. A jar without recognized Fabric/NeoForge metadata is allowed
-but is skipped for dependency validation. Validation output is stable-sorted
-and a failed validation leaves no new artifact.
+## CLI Release Automation
 
-`--build-type cf` performs the same client-set validation, resolving or
-downloading CurseForge jars when they are not already cached. This means the
-first CF build can perform network downloads before producing its manifest.
-
-Output path: `releases/v<version>/<packName>-<mcVersion>-<loader>-<loaderVersion>-<target>.zip`
+`mcm version`, `mcm -v`, and `mcm --version` share the hard-coded
+`domain.Version` value. Stable and beta workflows build native Linux
+amd64/arm64, Windows amd64, and macOS amd64/arm64 archives in parallel.
+Stable bumps create a `release`-labeled version PR; beta publishes a
+`vX.Y.Z-canary.N` prerelease directly. Both accept an optional `base_version`
+(`x.y.z`), which is used directly when supplied.

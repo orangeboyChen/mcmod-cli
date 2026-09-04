@@ -28,6 +28,7 @@ Jar 解析与下载、构建产物（client / server zip）和发布索引。
 - `mcmod tree` 渲染已解析的依赖树
 - 跨平台二进制，可通过 `go install` 或 GitHub Releases 安装
 - 也提供简短命令名 `mcm`（`go install ./cmd/mcm`）。
+- `mcm version`、`mcm -v` 和 `mcm --version` 都会输出写死在代码中的 CLI 版本。
 
 ## 快速开始
 
@@ -102,6 +103,16 @@ mcmod build 1.21.1 neoforge
 | `mcmod --help`                                | 显示完整命令树（见 [docs/000-index.md](./docs/000-index.md)） |
 
 完整命令树（含位置参数）请运行 `mcmod --help`。
+
+## 发布
+
+可以手动运行 `Bump Stable Release Version` workflow，选择 `major`、
+`minor`（默认）或 `patch`；也可以填写可选的 `base_version`（`x.y.z`）作为递增基准。
+workflow 会创建带 `release` label 的版本 PR。
+PR 合入后，`Tag Stable Release` 会创建 `vX.Y.Z` tag，随后并行使用原生
+Linux amd64/arm64、Windows amd64、macOS amd64/arm64 runner 构建并发布 GitHub Release。
+
+`Publish Beta Release` workflow 也支持可选的 `base_version`，会直接创建 `vX.Y.Z-canary.N` tag，并使用相同的平台矩阵发布 prerelease。
 
 ## 项目目录
 

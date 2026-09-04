@@ -21,14 +21,14 @@ func newVersionCmd() *cobra.Command {
 Example:
   mcmod version`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// Use cmd.OutOrStdout() so the version line lands on stdout,
-			// matching spec 7.3. cobra's cmd.Println() falls back to
-			// stderr when the outWriter is not set, which would make
-			// piped consumers (and our smoke tests) miss the output.
-			_, err := fmt.Fprintln(cmd.OutOrStdout(), "mcmod version "+domain.Version)
-			return err
+			return printVersion(cmd)
 		},
 	}
 
 	return cmd
+}
+
+func printVersion(cmd *cobra.Command) error {
+	_, err := fmt.Fprintln(cmd.OutOrStdout(), "mcmod version "+domain.Version)
+	return err
 }

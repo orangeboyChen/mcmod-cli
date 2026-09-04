@@ -1,0 +1,96 @@
+# File: .github/workflows/beta-release.yml
+# Created: 2026-09-04
+# Description: Creates and publishes a direct canary release for mcm.
+
+name: Publish Beta Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      part:
+        description: SemVer component to increment after the latest stable version.
+        required: true
+        default: minor
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      base_version:
+        description: Optional x.y.z version to use as the increment base.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Calculate and tag next canary version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PART: ${{ inputs.part }}
+          BASE_VERSION: ${{ inputs.base_version }}
+        run: |
+          set -euo pipefail
+          releases="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases")"
+          latest_stable="$(jq -r '.[] | select(.draft == false and .prerelease == false) | .tag_name' <<< "$releases" | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)"
+          latest_canary="$(jq -r '.[] | select(.draft == false and .prerelease == true) | .tag_name' <<< "$releases" | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$' | sort -V | tail -n 1 || true)"
+          canary_base=false
+          if [ -n "$BASE_VERSION" ]; then
+            [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "base_version must be x.y.z" >&2; exit 1; }
+            base="$BASE_VERSION"
+            canary="$(jq -r --arg prefix "v$base-canary." '.[] | select(.draft == false and .prerelease == true and (.tag_name | startswith($prefix))) | .tag_name' <<< "$releases" | sed 's/.*-canary\.//' | sort -n | tail -n 1 || true)"
+            stable_exists="$(jq -r --arg tag "v$base" '.[] | select(.draft == false and .prerelease == false and .tag_name == $tag) | .tag_name' <<< "$releases")"
+            canary_base=true
+          elif [ -n "$latest_canary" ]; then
+            base="${latest_canary%-canary.*}"
+            canary="${latest_canary##*.}"
+            stable_exists="$(jq -r --arg tag "v$base" '.[] | select(.draft == false and .prerelease == false and .tag_name == $tag) | .tag_name' <<< "$releases")"
+            if [ -z "$stable_exists" ]; then
+              canary_base=true
+            fi
+          else
+            base="${latest_stable:-0.0.0}"
+            canary=0
+            stable_exists=present
+          fi
+          if [ "$canary_base" = true ] && [ -n "$canary" ]; then
+            next="$base-canary.$((canary + 1))"
+          elif [ "$canary_base" = true ]; then
+            next="$base-canary.1"
+          else
+            IFS=. read -r major minor patch <<< "$base"
+            case "$PART" in
+              major) next="$((major + 1)).0.0-canary.1" ;;
+              minor) next="$major.$((minor + 1)).0-canary.1" ;;
+              patch) next="$major.$minor.$((patch + 1))-canary.1" ;;
+              *) echo "unsupported version component: $PART" >&2; exit 1 ;;
+            esac
+          fi
+          tag="v$next"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          sed -i.bak -E "s/(const Version = )\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$next\"/" internal/domain/common.go
+          rm internal/domain/common.go.bak
+          git add internal/domain/common.go
+          git commit -m "chore(release): prepare $next"
+          git tag -a "$tag" -m "Beta release $tag"
+          git push origin "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: prepare
+    uses: ./.github/workflows/build-release.yml
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      prerelease: true
