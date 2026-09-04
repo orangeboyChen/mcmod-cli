@@ -1,6 +1,6 @@
-// File: test/smoke_suite_test.go
+// File: test/e2e/e2e_suite_test.go
 // Created: 2026-06-20
-// Description: Ginkgo test suite for mcmod CLI smoke tests.
+// Description: Ginkgo test suite for mcmod CLI end-to-end tests.
 
 package test
 
@@ -20,29 +20,21 @@ import (
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
-func TestSmoke(t *testing.T) {
+func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Smoke Suite")
+	RunSpecs(t, "Integration Suite")
 }
 
-var smokeDir string
 var mcmodBin string
 
 var _ = BeforeSuite(func() {
-	smokeDir = GinkgoT().TempDir()
+	buildDir := GinkgoT().TempDir()
 	// Build the CLI binary
-	mcmodBin = filepath.Join(smokeDir, "mcmod")
+	mcmodBin = filepath.Join(buildDir, "mcmod")
 	cmd := exec.Command("go", "build", "-o", mcmodBin, "github.com/orangeboyChen/mcmod-cli/cmd/mcmod")
 	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), "build mcmod: %s", string(output))
 })
-
-func writeSpec(dir string, content string) string {
-	p := filepath.Join(dir, "packspec.json")
-	err := os.WriteFile(p, []byte(content), 0644)
-	Expect(err).NotTo(HaveOccurred())
-	return p
-}
 
 func runMcmod(dir string, args ...string) (string, string, error) {
 	cmd := exec.Command(mcmodBin, args...)
@@ -67,41 +59,20 @@ func runMcmod(dir string, args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func writeSpecStd(dir string) {
-	writeSpec(dir, `{
-		"packName": "test-pack",
-		"packVersion": "0.1.0",
-		"minecraftVersion": "1.21.1",
-		"loaderName": ["neoforge:21.1.219", "fabric:1.21.123"],
-		"author": "tester",
-		"mods": {
-			"jei": {
-				"name": "Just Enough Items",
-				"scope": "client",
-				"source": {"type": "curseforge", "query": "Just Enough Items"}
-			},
-			"create": {
-				"scope": "shared",
-				"source": {"type": "curseforge", "query": "Create"}
-			}
-		}
-	}`)
-}
-
 func writeLockFile(dir, mcVersion, loader string, lock *domain.PackLock) {
 	p := filepath.Join(dir, "locks", "dependencies", fmt.Sprintf("%s-%s.json", mcVersion, loader))
-	os.MkdirAll(filepath.Dir(p), 0755)
-	data, _ := json.MarshalIndent(lock, "", "  ")
-	err := os.WriteFile(p, data, 0644)
+	Expect(os.MkdirAll(filepath.Dir(p), 0755)).To(Succeed())
+	data, err := json.MarshalIndent(lock, "", "  ")
 	Expect(err).NotTo(HaveOccurred())
+	Expect(os.WriteFile(p, data, 0644)).To(Succeed())
 }
 
-func writeReleaseIndexFile(dir, mcVersion string, ri *domain.ReleaseIndex) {
+func writeReleaseIndexFile(dir, mcVersion string, index *domain.ReleaseIndex) {
 	p := filepath.Join(dir, "locks", "releases", fmt.Sprintf("%s.json", mcVersion))
-	os.MkdirAll(filepath.Dir(p), 0755)
-	data, _ := json.MarshalIndent(ri, "", "  ")
-	err := os.WriteFile(p, data, 0644)
+	Expect(os.MkdirAll(filepath.Dir(p), 0755)).To(Succeed())
+	data, err := json.MarshalIndent(index, "", "  ")
 	Expect(err).NotTo(HaveOccurred())
+	Expect(os.WriteFile(p, data, 0644)).To(Succeed())
 }
 
 func createFixtureJar(dir, name, metaType, metaContent string) string {
@@ -110,18 +81,18 @@ func createFixtureJar(dir, name, metaType, metaContent string) string {
 	Expect(err).NotTo(HaveOccurred())
 	defer f.Close()
 	w := zip.NewWriter(f)
-	var metaPath string
-	switch metaType {
-	case "neoforge":
+	defer w.Close()
+	metaPath := "fabric.mod.json"
+	if metaType == "neoforge" {
 		metaPath = "META-INF/neoforge.mods.toml"
-	case "fabric":
-		metaPath = "fabric.mod.json"
 	}
-	entry, _ := w.Create(metaPath)
-	entry.Write([]byte(metaContent))
-	// Add a class file for conflict detection
-	classEntry, _ := w.Create("com/example/Foo.class")
-	classEntry.Write([]byte("fake class data"))
-	w.Close()
+	entry, err := w.Create(metaPath)
+	Expect(err).NotTo(HaveOccurred())
+	_, err = entry.Write([]byte(metaContent))
+	Expect(err).NotTo(HaveOccurred())
+	classEntry, err := w.Create("com/example/Foo.class")
+	Expect(err).NotTo(HaveOccurred())
+	_, err = classEntry.Write([]byte("fake class data"))
+	Expect(err).NotTo(HaveOccurred())
 	return p
 }

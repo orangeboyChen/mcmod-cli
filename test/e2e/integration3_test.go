@@ -1,4 +1,4 @@
-// File: test/integration3_test.go
+// File: test/e2e/integration3_test.go
 // Created: 2026-06-20
 // Description: End-to-end tests for CURSEFORGE_API_KEY resolution order
 // (env > project > user), `set` / `config` edge cases, and help/error
@@ -462,7 +462,7 @@ var _ = Describe("Integration3: set / config / CURSEFORGE_API_KEY order", func()
 			Expect(err).To(HaveOccurred())
 		})
 		It("K07-4: lock tree output is stable across runs", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout1, _, err := runMcmod(d, "lock", "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			stdout2, _, err := runMcmod(d, "lock", "tree", "1.21.1", "neoforge")
@@ -478,7 +478,7 @@ var _ = Describe("Integration3: set / config / CURSEFORGE_API_KEY order", func()
 			Expect(stdout1).To(Equal(stdout2))
 		})
 		It("K07-6: lock show full JSON is valid JSON", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			var v map[string]interface{}

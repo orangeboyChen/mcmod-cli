@@ -22,8 +22,6 @@ mcmod.exe
 # Build output
 releases/
 dist/
-test/examples/smoke/.cache/
-test/examples/smoke/locks/releases/
 
 # Coverage
 coverage.out

@@ -1,4 +1,4 @@
-// File: test/integration2_test.go
+// File: test/e2e/integration2_test.go
 // Created: 2026-06-20
 // Description: End-to-end integration tests that use the real project
 // packspec.json (21 mods across curseforge / github-release / local) and the
@@ -24,9 +24,9 @@ import (
 func copyProjectPackSpec(t GinkgoTInterface, dst string) {
 	root, err := os.Getwd()
 	Expect(err).NotTo(HaveOccurred())
-	src := filepath.Join(root, "packspec.json")
+	src := filepath.Join(root, "..", "..", "packspec.json")
 	if _, err := os.Stat(src); err != nil {
-		src = filepath.Join(root, "..", "packspec.json")
+		src = filepath.Join(root, "packspec.json")
 	}
 	in, err := os.ReadFile(src)
 	Expect(err).NotTo(HaveOccurred(), "read project packspec.json")
@@ -54,31 +54,30 @@ func copyDir(t GinkgoTInterface, src, dst string) {
 	}
 }
 
-// copyExampleSeed copies the example smoke workspace (packspec + locks + .cache)
-// into a temp directory so tests can build against cached jars.
-func copyExampleSeed(t GinkgoTInterface, dst string) {
-	root, err := os.Getwd()
-	Expect(err).NotTo(HaveOccurred())
-	exampleDir := filepath.Join(root, "..", "examples", "smoke")
-	if _, err := os.Stat(exampleDir); err != nil {
-		exampleDir = filepath.Join(root, "examples", "smoke")
-	}
-	data, err := os.ReadFile(filepath.Join(exampleDir, "packspec.json"))
-	Expect(err).NotTo(HaveOccurred())
-	Expect(os.WriteFile(filepath.Join(dst, "packspec.json"), data, 0644)).To(Succeed())
-	for _, sub := range []string{"locks/dependencies", "locks/releases"} {
-		src := filepath.Join(exampleDir, sub)
-		dstDir := filepath.Join(dst, sub)
-		Expect(os.MkdirAll(dstDir, 0755)).To(Succeed())
-		entries, err := os.ReadDir(src)
-		Expect(err).NotTo(HaveOccurred())
-		for _, e := range entries {
-			b, err := os.ReadFile(filepath.Join(src, e.Name()))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(os.WriteFile(filepath.Join(dstDir, e.Name()), b, 0644)).To(Succeed())
-		}
-	}
-	copyDir(t, filepath.Join(exampleDir, ".cache"), filepath.Join(dst, ".cache"))
+// copyExampleWorkspace creates a deterministic three-mod workspace for end-to-end tests.
+func copyExampleWorkspace(t GinkgoTInterface, dst string) {
+	Expect(os.WriteFile(filepath.Join(dst, "packspec.json"), []byte(`{
+  "packName": "e2e",
+  "serverPackName": "e2e-server",
+  "packVersion": "0.1.0",
+  "minecraftVersion": "1.21.1",
+  "loaderName": ["neoforge:21.1.219"],
+  "mods": {
+    "create": {"name": "Create", "scope": "shared", "source": {"type": "curseforge", "query": "Create"}},
+    "jei": {"name": "Just Enough Items", "scope": "client", "source": {"type": "curseforge", "query": "Just Enough Items"}},
+    "server-enhanced": {"name": "Server Enhanced Mod", "scope": "server", "source": {"type": "github-release", "repo": "orangeboyChen/mc-server-enhanced-mod", "tag": "v1.4.2", "assetPattern": "serverenhancedmod-1.21.1-*.jar"}}
+  }
+}`), 0644)).To(Succeed())
+	lock := &domain.PackLock{Loader: "neoforge", LoaderVersion: "21.1.219", MinecraftVersion: "1.21.1", Mods: map[string]domain.LockedMod{
+		"create":          {Name: "Create", Version: "6.0.0", Scope: "shared", Source: domain.LockedSource{Type: "curseforge", ModID: 328085, FileID: 5812340, FileName: "create-1.21.1-neoforge.jar"}},
+		"jei":             {Name: "Just Enough Items", Version: "19.21.0.247", Scope: "client", Source: domain.LockedSource{Type: "curseforge", ModID: 238222, FileID: 5812400, FileName: "jei-1.21.1-neoforge.jar"}},
+		"server-enhanced": {Name: "Server Enhanced Mod", Version: "1.4.2", Scope: "server", Source: domain.LockedSource{Type: "github-release", Repo: "orangeboyChen/mc-server-enhanced-mod", Tag: "v1.4.2", AssetName: "serverenhancedmod-1.21.1-neoforge.jar", FileName: "serverenhancedmod-1.21.1-neoforge.jar"}},
+	}}
+	writeLockFile(dst, "1.21.1", "neoforge", lock)
+	writeReleaseIndexFile(dst, "1.21.1", &domain.ReleaseIndex{Type: "package", PackName: "e2e", MinecraftVersion: "1.21.1", Releases: []domain.ReleaseRecord{{Version: "0.1.0", Type: "github-release", GitHub: domain.ReleaseGitHub{Repo: "orangeboyChen/mc-e2e", Tag: "v0.1.0", Name: "e2e 0.1.0"}, Artifact: map[string]domain.ReleaseArtifactSet{"neoforge": {Client: "releases/v0.1.0/e2e-1.21.1-neoforge-21.1.219-client.zip", Server: "releases/v0.1.0/e2e-server-1.21.1-neoforge-21.1.219-server.zip"}}}}})
+	seedCachedJar(filepath.Join(dst, ".cache", "curseforge", "328085", "5812340", "create-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(dst, ".cache", "curseforge", "238222", "5812400", "jei-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(dst, ".cache", "github-release", "orangeboyChen", "mc-server-enhanced-mod", "v1.4.2", "serverenhancedmod-1.21.1-neoforge.jar"))
 }
 
 // runMcmodWithEnv runs mcmod with explicit env overrides (used to test
@@ -283,7 +282,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 	// ============== J07: tree against real packspec + real lock ==============
 	Describe("J07: tree against real workspace", func() {
 		It("J07-1: tree alias reads example lock and prints all mods", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))
@@ -292,7 +291,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(stdout).To(ContainSubstring("Server Enhanced"))
 		})
 		It("J07-2: lock tree with explicit args", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))
@@ -308,13 +307,13 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(stderr).To(ContainSubstring("hint"))
 		})
 		It("J07-4: lock tree with 0 args uses default mc/loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("1.21.1"))
 		})
 		It("J07-5: lock tree with 1 arg uses default loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("1.21.1"))
@@ -324,7 +323,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 	// ============== J08: lock list with example lock ==============
 	Describe("J08: lock list with example workspace", func() {
 		It("J08-1: lock list shows all three scope sections", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "list", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("[Server]"))
@@ -332,7 +331,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(stdout).To(ContainSubstring("[Shared]"))
 		})
 		It("J08-2: lock list (no args) uses default mc/loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "list")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("lock 1.21.1 neoforge"))
@@ -357,7 +356,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 	// ============== J09: lock show with example lock ==============
 	Describe("J09: lock show with example workspace", func() {
 		It("J09-1: lock show with no key dumps full JSON", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			var l domain.PackLock
@@ -365,7 +364,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Loader).To(Equal("neoforge"))
 		})
 		It("J09-2: lock show with key prints scope/source", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge", "create")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("scope: shared"))
@@ -373,7 +372,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(stdout).To(ContainSubstring("type: curseforge"))
 		})
 		It("J09-3: lock show with missing key fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge", "no-such-key")
 			Expect(err).To(HaveOccurred())
 		})
@@ -392,7 +391,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 	// ============== J10: lock add/update/delete round-trip ==============
 	Describe("J10: lock add/update/delete with example workspace", func() {
 		It("J10-1: lock add curseforge writes mod-id and file-id", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "add", "1.21.1", "neoforge", "cfkey",
 				"--name", "CF", "--version", "1.0", "--scope", "shared",
 				"--source", "curseforge",
@@ -405,7 +404,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods["cfkey"].Source.FileID).To(Equal(222222))
 		})
 		It("J10-2: lock add github-release writes repo/tag/assetName", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "add", "1.21.1", "neoforge", "ghkey",
 				"--name", "GH", "--version", "1.0", "--scope", "shared",
 				"--source", "github-release",
@@ -419,7 +418,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods["ghkey"].Source.AssetName).To(Equal("gh.jar"))
 		})
 		It("J10-3: lock add local writes path and fileName", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "add", "1.21.1", "neoforge", "lckey",
 				"--name", "LC", "--version", "1.0", "--scope", "shared",
 				"--source", "local",
@@ -432,7 +431,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods["lckey"].Source.FileName).To(Equal("lc.jar"))
 		})
 		It("J10-4: lock add duplicate key fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "add", "1.21.1", "neoforge", "create",
 				"--source", "curseforge", "--mod-id", "1", "--file-id", "1", "--file-name", "x.jar")
 			Expect(err).To(HaveOccurred())
@@ -452,7 +451,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods).To(HaveLen(1))
 		})
 		It("J10-6: lock update single key changes version", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "update", "1.21.1", "neoforge", "create", "--version", "2.0")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "dependencies", "1.21.1-neoforge.json"))
@@ -461,17 +460,17 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods["create"].Version).To(Equal("2.0"))
 		})
 		It("J10-7: lock update single key without --version still saves", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "update", "1.21.1", "neoforge", "create")
 			Expect(err).NotTo(HaveOccurred())
 		})
 		It("J10-8: lock update missing key fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "update", "1.21.1", "neoforge", "no-such")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J10-9: lock delete single key keeps other entries", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "delete", "1.21.1", "neoforge", "create")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "dependencies", "1.21.1-neoforge.json"))
@@ -481,19 +480,19 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(l.Mods).To(HaveKey("jei"))
 		})
 		It("J10-10: lock delete missing key fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "delete", "1.21.1", "neoforge", "nope")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J10-11: lock delete with no key removes lock file", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "delete", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			_, err = os.Stat(filepath.Join(d, "locks", "dependencies", "1.21.1-neoforge.json"))
 			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 		It("J10-12: lock delete with no key/no loader removes all loaders", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "delete", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "locks", "dependencies"))
@@ -524,7 +523,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 	// ============== J11: lock release set/list/show/delete ==============
 	Describe("J11: lock release round-trip", func() {
 		It("J11-1: release set writes GitHub metadata to release index", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.2.0", "--repo", "o/r", "--tag", "v0.2.0",
 				"--name", "R0.2", "--body", "Body")
@@ -540,7 +539,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(rec.GitHub.Body).To(Equal("Body"))
 		})
 		It("J11-2: release list prints both versions", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.2.0", "--repo", "o/r", "--tag", "v0.2.0")
 			Expect(err).NotTo(HaveOccurred())
@@ -550,19 +549,19 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(stdout).To(ContainSubstring("0.2.0"))
 		})
 		It("J11-3: release show with valid version prints full record", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "release", "show", "1.21.1", "0.1.0")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("github"))
-			Expect(stdout).To(ContainSubstring("orangeboyChen/mc-smoke"))
+			Expect(stdout).To(ContainSubstring("orangeboyChen/mc-e2e"))
 		})
 		It("J11-4: release show with missing version fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "show", "1.21.1", "9.9.9")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-5: release delete full record removes the index file", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1", "0.1.0")
 			Expect(err).NotTo(HaveOccurred())
 			// Per spec 7.4.8 the index file is removed when the last
@@ -572,17 +571,17 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(os.IsNotExist(statErr)).To(BeTrue())
 		})
 		It("J11-6: release delete with 0 args fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-7: release delete with 1 arg fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-8: release delete single client artifact keeps server", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1", "0.1.0", "neoforge", "--target", "client")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "releases", "1.21.1.json"))
@@ -592,7 +591,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(ri.Releases[0].Artifact["neoforge"].Server).NotTo(BeEmpty())
 		})
 		It("J11-9: release delete single server artifact keeps client", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1", "0.1.0", "neoforge", "--target", "server")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "releases", "1.21.1.json"))
@@ -602,7 +601,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(ri.Releases[0].Artifact["neoforge"].Client).NotTo(BeEmpty())
 		})
 		It("J11-10: release delete with --target both clears both", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "delete", "1.21.1", "0.1.0", "neoforge", "--target", "both")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, "locks", "releases", "1.21.1.json"))
@@ -616,7 +615,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-12: release set with --draft and --prerelease writes flags", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.3.0", "--repo", "o/r", "--tag", "v0.3.0",
 				"--draft", "--prerelease")
@@ -630,7 +629,7 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(rec.GitHub.Pre).To(BeTrue())
 		})
 		It("J11-13: release set with --artifact-client/--artifact-server writes paths", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.4.0", "--repo", "o/r", "--tag", "v0.4.0",
 				"--artifact-client", "client-x.zip", "--artifact-server", "server-x.zip")
@@ -644,19 +643,19 @@ var _ = Describe("Integration2: real packspec coverage", func() {
 			Expect(rec.Artifact["neoforge"].Server).To(Equal("server-x.zip"))
 		})
 		It("J11-14: release set without --repo fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.5.0", "--tag", "v0.5.0")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-15: release set without --tag fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--version", "0.6.0", "--repo", "o/r")
 			Expect(err).To(HaveOccurred())
 		})
 		It("J11-16: release set without --version fails", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "lock", "release", "set", "1.21.1", "neoforge",
 				"--repo", "o/r", "--tag", "v1")
 			Expect(err).To(HaveOccurred())

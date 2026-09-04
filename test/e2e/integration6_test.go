@@ -1,4 +1,4 @@
-// File: test/integration6_test.go
+// File: test/e2e/test/e2e/integration6_test.go
 // Created: 2026-06-20
 // Description: Exhaustive integration tests covering every CLI subcommand
 // and every argument combination listed in specification.md sections 7.1
@@ -393,19 +393,19 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 	// ============================================================
 	Describe("N08: lock tree coverage (spec 7.3)", func() {
 		It("N08-1: lock tree 0 args uses default mc/loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree 1.21.1 neoforge"))
 		})
 		It("N08-2: lock tree 1 arg uses default loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree 1.21.1 neoforge"))
 		})
 		It("N08-3: lock tree 2 args full", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "lock", "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree 1.21.1 neoforge"))
@@ -778,19 +778,19 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 	// ============================================================
 	Describe("N13: tree alias coverage (spec 7.6)", func() {
 		It("N13-1: tree 0 args uses defaults", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree"))
 		})
 		It("N13-2: tree 1 arg uses default loader", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree 1.21.1 neoforge"))
 		})
 		It("N13-3: tree 2 args full", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			stdout, _, err := runMcmod(d, "tree", "1.21.1", "neoforge")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("dependency tree 1.21.1 neoforge"))
@@ -961,7 +961,7 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 })
 
 // ============================================================
-// Helper functions used by integration6_test.go
+// Helper functions used by test/e2e/integration6_test.go
 // ============================================================
 
 // writeMinimalPackspec2 writes a minimal packspec.json with explicit loader list

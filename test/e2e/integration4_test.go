@@ -1,4 +1,4 @@
-// File: test/integration4_test.go
+// File: test/e2e/integration4_test.go
 // Created: 2026-06-20
 // Description: End-to-end build tests that inspect the produced zip
 // artifacts in detail — file contents, scope separation, and override
@@ -320,30 +320,30 @@ var _ = Describe("Integration4: build zip content", func() {
 	})
 
 	// ============== L04: build with example seed (3 mods: create, jei, server-enhanced) ==============
-	Describe("L04: build with example smoke seed", func() {
+	Describe("L04: build with generated e2e workspace", func() {
 		It("L04-1: example seed build --target both creates 2 zips", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "both")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(2))
 		})
 		It("L04-2: example seed build --target client creates 1 zip", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "client")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(1))
 		})
 		It("L04-3: example seed build --target server creates 1 zip", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "server")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
 			Expect(entries).To(HaveLen(1))
 		})
 		It("L04-4: example seed client zip contains create.jar and jei.jar but not server-enhanced.jar", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "client")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))
@@ -354,7 +354,7 @@ var _ = Describe("Integration4: build zip content", func() {
 			Expect(zipHasPath(zp, "mods/serverenhancedmod-1.21.1-neoforge.jar")).To(BeFalse())
 		})
 		It("L04-5: example seed server zip contains create.jar and server-enhanced.jar but not jei.jar", func() {
-			copyExampleSeed(GinkgoT(), d)
+			copyExampleWorkspace(GinkgoT(), d)
 			_, _, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "server")
 			Expect(err).NotTo(HaveOccurred())
 			entries, _ := os.ReadDir(filepath.Join(d, "releases", "v0.1.0"))

@@ -1,4 +1,4 @@
-// File: test/integration_test.go
+// File: test/e2e/integration_test.go
 // Created: 2026-06-20
 // Description: End-to-end integration tests using real packspec/lock/build pipeline
 // and exercising every CLI subcommand with a populated workspace.
@@ -238,7 +238,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			var l domain.PackLock
 			Expect(json.Unmarshal([]byte(stdout), &l)).To(Succeed())
 			Expect(l.Loader).To(Equal("neoforge"))
-			Expect(l.Mods).To(HaveLen(3))
+			Expect(l.Mods).To(HaveLen(5))
 		})
 		It("lock show single key prints curseforge fields", func() {
 			stdout, _, err := runMcmod(d, "lock", "show", "1.21.1", "neoforge", "create")
@@ -274,7 +274,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			Expect(err).NotTo(HaveOccurred())
 			var l domain.PackLock
 			readJSON(GinkgoT(), filepath.Join(d, "locks/dependencies/1.21.1-neoforge.json"), &l)
-			Expect(l.Mods).To(HaveLen(4))
+			Expect(l.Mods).To(HaveLen(6))
 			Expect(l.Mods["extra-mod"].Source.ModID).To(Equal(1))
 		})
 		It("lock add local extends the real lock", func() {
@@ -283,7 +283,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			Expect(err).NotTo(HaveOccurred())
 			var l domain.PackLock
 			readJSON(GinkgoT(), filepath.Join(d, "locks/dependencies/1.21.1-neoforge.json"), &l)
-			Expect(l.Mods).To(HaveLen(4))
+			Expect(l.Mods).To(HaveLen(6))
 			Expect(l.Mods["local-extra"].Source.Path).To(Equal("./mods/lx.jar"))
 		})
 		It("lock update changes a single entry version", func() {
@@ -298,7 +298,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			Expect(err).NotTo(HaveOccurred())
 			var l domain.PackLock
 			readJSON(GinkgoT(), filepath.Join(d, "locks/dependencies/1.21.1-neoforge.json"), &l)
-			Expect(l.Mods).To(HaveLen(2))
+			Expect(l.Mods).To(HaveLen(4))
 			Expect(l.Mods).To(HaveKey("create"))
 			Expect(l.Mods).To(HaveKey("server-enhanced"))
 			Expect(l.Mods).NotTo(HaveKey("jei"))
