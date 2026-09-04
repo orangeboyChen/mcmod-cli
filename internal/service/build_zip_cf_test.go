@@ -104,7 +104,7 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		Expect(os.MkdirAll(ghDir, 0755)).To(Succeed())
 		writeValidTestJar(filepath.Join(ghDir, "a.jar"))
 		for _, item := range []struct{ modID, fileID string }{{"100", "1001"}, {"200", "2002"}, {"300", "3003"}} {
-			cacheDir := filepath.Join(".cache", "curseforge", item.modID, item.fileID)
+			cacheDir := filepath.Join(".mcmod", "cache", "curseforge", item.modID, item.fileID)
 			Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
 			writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 		}
@@ -173,7 +173,7 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		wd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
-		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		cacheDir := filepath.Join(".mcmod", "cache", "curseforge", "1", "2")
 		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
 		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
@@ -199,7 +199,7 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		wd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
-		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		cacheDir := filepath.Join(".mcmod", "cache", "curseforge", "1", "2")
 		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
 		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
@@ -243,7 +243,7 @@ var _ = Describe("BuildArtifactCF overrides", func() {
 		Expect(os.WriteFile("config/common.cfg", []byte("cfg"), 0644)).To(Succeed())
 		Expect(os.MkdirAll("resourcepacks", 0755)).To(Succeed())
 		Expect(os.WriteFile("resourcepacks/pack.zip", []byte("rp"), 0644)).To(Succeed())
-		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		cacheDir := filepath.Join(".mcmod", "cache", "curseforge", "1", "2")
 		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
 		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
