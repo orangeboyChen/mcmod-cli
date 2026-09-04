@@ -1,17 +1,11 @@
 <!--
 File: docs/011-configuration.md
-Created: 2026-06-20
-Description: Configuration management for API keys.
+Created: 2026-09-04
+Description: Project configuration.
 -->
 # Configuration
 
-## CurseForge API Key Priority
-1. `CURSEFORGE_API_KEY` environment variable
-2. `.mcmod/config.json` (project-level)
-3. `~/.config/mcmod/config.json` (user-level)
-
-## Commands
-```
-mcmod config set-cf-key <key>    # Set project-level key
-mcmod config                      # Show current key
-```
+The only persistent project configuration is `.mcmod/config.json` in the
+current directory. Set it with `mcmod config set-cf-key <key>` or
+`mcmod set cf-key <key>`. `CURSEFORGE_API_KEY` overrides it for one process.
+No `HOME`, `XDG_CONFIG_HOME`, or user/global path is read.

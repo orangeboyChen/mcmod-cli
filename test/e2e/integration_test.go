@@ -38,7 +38,7 @@ func writeJSON(path string, v interface{}) {
 
 // seedFakeJar writes a small zip file at the given path with a metadata entry
 // and a dummy class file. Used to satisfy the build pipeline that needs jars
-// in .cache/.
+// in .mcmod/cache/.
 func seedFakeJar(path, metaPath, metaContent string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		Fail(err.Error())
@@ -176,10 +176,10 @@ func makeRealLockForBuild(dir string) {
 	writeLockFile(dir, "1.21.1", "neoforge", lock)
 }
 
-// seedBuildCache creates the .cache/ jars required by makeRealLockForBuild so
+// seedBuildCache creates the .mcmod/cache/ jars required by makeRealLockForBuild so
 // that build can complete without network access.
 func seedBuildCache(dir string) {
-	base := filepath.Join(dir, ".cache")
+	base := filepath.Join(dir, ".mcmod", "cache")
 	seedCachedJar(filepath.Join(base, "curseforge", "328085", "5812340", "create-1.21.1-neoforge.jar"))
 	seedCachedJar(filepath.Join(base, "curseforge", "238222", "5812400", "jei-1.21.1-neoforge.jar"))
 	seedCachedJar(filepath.Join(base, "github-release", "orangeboyChen", "mc-server-enhanced-mod", "v1.4.2", "serverenhancedmod-1.21.1-neoforge.jar"))
@@ -526,7 +526,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			writeLockFile(d, "1.21.1", "fabric", fabricLock)
 			makeRealLockForBuild(d)
 			seedBuildCache(d)
-			seedCachedJar(filepath.Join(d, ".cache/curseforge/328085/5812340/create-1.21.1-fabric.jar"))
+			seedCachedJar(filepath.Join(d, ".mcmod/cache/curseforge/328085/5812340/create-1.21.1-fabric.jar"))
 
 			_, _, err := runMcmod(d, "build", "1.21.1")
 			Expect(err).NotTo(HaveOccurred())
@@ -535,7 +535,7 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 		})
 	})
 
-	// ============== I09: config + set round-trip (isolated HOME) ==============
+	// ============== I09: config + set round-trip (project-local) ==============
 	Describe("I09: config + set isolation", func() {
 		It("set cf-key --project writes .mcmod/config.json in temp dir only", func() {
 			_, _, err := runMcmod(d, "set", "cf-key", "integration-test-key", "--project")
@@ -544,11 +544,11 @@ var _ = Describe("Integration: real packspec + build pipeline", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(data)).To(ContainSubstring("integration-test-key"))
 		})
-		It("set cf-key without --project does not pollute the temp dir", func() {
+		It("set cf-key without --project writes the project config", func() {
 			_, _, err := runMcmod(d, "set", "cf-key", "userkey")
 			Expect(err).NotTo(HaveOccurred())
 			_, err = os.Stat(filepath.Join(d, ".mcmod/config.json"))
-			Expect(os.IsNotExist(err)).To(BeTrue(), "project config should not exist for user-level set")
+			Expect(err).NotTo(HaveOccurred())
 		})
 		It("config reflects the key set via set --project", func() {
 			_, _, _ = runMcmod(d, "set", "cf-key", "reflected-key", "--project")

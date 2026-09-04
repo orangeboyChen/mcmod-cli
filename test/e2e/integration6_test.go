@@ -45,7 +45,7 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 		It("N01-3: set cf-key with empty value still saves empty string", func() {
 			_, _, err := runMcmodWithEnv(d, cleanEnv(d), "set", "cf-key", "")
 			Expect(err).NotTo(HaveOccurred())
-			_, statErr := os.Stat(filepath.Join(d, ".config", "mcmod", "config.json"))
+			_, statErr := os.Stat(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(statErr).NotTo(HaveOccurred())
 		})
 		It("N01-4: set cf-key --project --global still writes project (--project wins)", func() {
@@ -1004,11 +1004,9 @@ func createFixtureJarWithClass(d, name, classPath string) string {
 	return p
 }
 
-// cleanEnv returns a minimal env slice for tests that need isolated HOME/CFG.
+// cleanEnv returns a minimal environment for project-local tests.
 func cleanEnv(d string) []string {
 	return []string{
-		"HOME=" + d,
-		"XDG_CONFIG_HOME=" + d,
 		"CURSEFORGE_API_KEY=",
 	}
 }

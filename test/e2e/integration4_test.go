@@ -67,7 +67,7 @@ func setupBuildableProject(d string, mcVersion, loader, loaderVersion string) {
 // setupCfBuildableProject writes a minimal spec/lock whose mods are all
 // curseforge-sourced with modId/fileId set, so `mcmod build --build-type cf`
 // has at least one eligible mod to emit in the manifest. Jars are staged in
-// the expected .cache/curseforge/<modId>/<fileId>/<fileName> tree so
+// the expected .mcmod/cache/curseforge/<modId>/<fileId>/<fileName> tree so
 // resolveModJar does not try to download.
 func setupCfBuildableProject(d string, mcVersion, loader, loaderVersion string) {
 	os.MkdirAll(filepath.Join(d, "config"), 0755)
@@ -81,7 +81,7 @@ func setupCfBuildableProject(d string, mcVersion, loader, loaderVersion string) 
 		}
 	}`), 0644)
 	// Stage the cached jar.
-	cached := filepath.Join(d, ".cache", "curseforge", "111", "222", "cf-mod.jar")
+	cached := filepath.Join(d, ".mcmod", "cache", "curseforge", "111", "222", "cf-mod.jar")
 	Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)

@@ -129,7 +129,7 @@ func parseVersionFromFileName(name string) string {
 
 // resolvedCache maps mod key -> known good modId/fileId/fileName so lock can
 // skip the CurseForge search step on subsequent runs. The cache lives at
-// .cache/resolved/<mc>-<loader>.json. It is best-effort: a stale entry
+// .mcmod/cache/resolved/<mc>-<loader>.json. It is best-effort: a stale entry
 // (file removed upstream) is fine because BuildLock re-validates the file
 // via findCurseForgeFile before trusting it.
 type resolvedCache map[string]resolvedEntry
@@ -260,8 +260,14 @@ func BuildLock(spec *domain.PackSpec, mcVersion, loader string) (*domain.PackLoc
 // only returns a non-nil error when the resolver pipeline is structurally
 // broken (e.g. unknown source type), mirroring BuildLock's contract.
 func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, existing *domain.PackLock) (*domain.PackLock, int, error) {
+	expandedMods, err := resolver.ExpandGitDependencies(spec, mcVersion, loader)
+	if err != nil {
+		return nil, 0, err
+	}
+	effectiveSpec := *spec
+	effectiveSpec.Mods = expandedMods
 	loaderVer := ""
-	for _, ln := range spec.LoaderName {
+	for _, ln := range effectiveSpec.LoaderName {
 		name, ver := domain.ParseLoaderName(ln)
 		if name == loader {
 			loaderVer = ver
@@ -275,7 +281,7 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 		Mods:             make(map[string]domain.LockedMod),
 	}
 
-	// Load the resolved-id cache (.cache/resolved/<mc>-<loader>.json) so we
+	// Load the resolved-id cache (.mcmod/cache/resolved/<mc>-<loader>.json) so we
 	// can skip the expensive CurseForge search step on subsequent runs. The
 	// cache is keyed by spec mod key; a hit lets the worker construct the
 	// LockedSource directly from the cached modId/fileId/fileName.
@@ -292,8 +298,8 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 	}
 	kept := 0
 	added := 0
-	queue := make([]pending, 0, len(spec.Mods))
-	for k, m := range spec.Mods {
+	queue := make([]pending, 0, len(effectiveSpec.Mods))
+	for k, m := range effectiveSpec.Mods {
 		if existing != nil {
 			if prev, ok := existing.Mods[k]; ok {
 				// Detect spec changes via a stable fingerprint. If the spec
@@ -321,7 +327,7 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 	removed := []string{}
 	if existing != nil {
 		for k := range existing.Mods {
-			if _, stillInSpec := spec.Mods[k]; !stillInSpec {
+			if _, stillInSpec := effectiveSpec.Mods[k]; !stillInSpec {
 				removed = append(removed, k)
 			}
 		}
@@ -452,7 +458,7 @@ func BuildLockWithExisting(spec *domain.PackSpec, mcVersion, loader string, exis
 	// Final summary: counts for each category plus per-failure detail so the
 	// operator can see exactly what happened without inspecting the lock file.
 	fmt.Fprintf(os.Stderr, "lock summary: added=%d kept=%d removed=%d failed=%d (total in spec=%d)\n",
-		added, kept, len(removed), len(failures), len(spec.Mods))
+		added, kept, len(removed), len(failures), len(effectiveSpec.Mods))
 	if cacheDirty {
 		// Drain sync.Map into a plain map for saveResolvedCache which is
 		// not concurrency-aware. The single-writer rule applies only to

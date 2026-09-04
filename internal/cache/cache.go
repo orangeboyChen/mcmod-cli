@@ -12,7 +12,7 @@ import (
 )
 
 // CacheDir is the root directory under which all downloaded artifacts are cached.
-const CacheDir = ".cache"
+const CacheDir = ".mcmod/cache"
 
 // CurseForgePath returns the cache path for a CurseForge file.
 func CurseForgePath(modID, fileID, fileName string) string {
@@ -78,7 +78,7 @@ func AtomicMove(src, dst string) error {
 	return os.Rename(src, dst)
 }
 
-// EnsureCacheDir creates the .cache directory.
+// EnsureCacheDir creates the .mcmod/cache directory.
 func EnsureCacheDir() error {
 	return os.MkdirAll(CacheDir, 0755)
 }

@@ -18,7 +18,7 @@ indexes.
 
 - Root `packspec.json` is the editable source of truth.
 - Root `locks/` contains stable lock results that **can be committed**.
-- `.cache/`, `.mcmod/`, `releases/`, `dist/`, `coverage.out`, and local
+- `.mcmod/`, `releases/`, `dist/`, `coverage.out`, and local
   binaries are generated artifacts. **Never commit them.**
 
 ## AI Agent Workflow (Read Before Doing Anything)
@@ -53,7 +53,7 @@ existing `docs/NNN-*.md` file.
 3. Do not reintroduce MCP support. `mcmod` is a CLI, not a server.
 4. Do not write CurseForge `modId`, `fileId`, `fileName`, GitHub `assetName`, or download URLs back into `packspec.json`.
 5. Do not ignore or delete `locks/`; lock files are stable project outputs.
-6. Do not commit `.cache/`, `.mcmod/`, `releases/`, `dist/`, archives, coverage files, local binaries, or `.env`.
+6. Do not commit `.mcmod/`, `releases/`, `dist/`, archives, coverage files, local binaries, or `.env`.
 7. Do not introduce new top-level dependencies without explicit maintainer approval. Re-evaluate `go.mod`/`go.sum` after `go mod tidy` and revert unrelated changes.
 8. Do not add `//nolint:`, `//nolintlint:`, file-level `//go:build` workarounds, or `.golangci.yml` exclusions to silence a finding. **Fix the root cause.**
 9. Do not use `panic` for control flow. Do not use `fmt.Println` for user-facing output in `internal/cli/...`. Use the helpers in `internal/cli` and write errors to `cmd.ErrOrStderr()`.
@@ -67,7 +67,7 @@ existing `docs/NNN-*.md` file.
 ```
 cmd/mcmod/                # main entry + main_test.go
 internal/
-  cache/                  # .cache/ on disk (SHA256, jar cache)
+  cache/                  # .mcmod/cache/ on disk (SHA256, jar cache)
   cli/                    # cobra commands, help template, output helpers
   config/                 # CURSEFORGE_API_KEY resolution (env > project > user)
   domain/                 # packspec, lock, release models + validation
@@ -220,8 +220,8 @@ responsibility list.
   or removing one requires a doc + spec update in the same change.
 - For "lock file round-trip" code paths, parse then re-marshal the
   example in `docs/003-lock-files.md` and diff.
-- Use `internal/cache` for any `.cache/` writes. Do not call
-  `os.MkdirAll(".cache/...")` from CLI or service code.
+- Use `internal/cache` for any `.mcmod/cache/` writes. Do not call
+  `os.MkdirAll(".mcmod/cache/...")` from CLI or service code.
 
 ### Concurrency & Context
 
@@ -245,11 +245,10 @@ responsibility list.
 - Framework: Ginkgo v2 + Gomega. Test files follow Ginkgo layout
   (`var _ = Describe(...)`, `BeforeEach`, `It`, `Specify`).
 - In-process CLI tests use `internal/testutil` and `chdirTemp()` to keep
-  `~/.config/mcmod/` clean.
+  project `.mcmod/` state isolated.
 - Subprocess smoke tests in `test/` build the binary once in
   `BeforeSuite` and run each `It` in a fresh `t.TempDir()`.
-- Subprocess env is always isolated: `HOME=<d>`, `XDG_CONFIG_HOME=<d>`,
-  `CURSEFORGE_API_KEY=""` cleared. Never inherit the host environment.
+- Subprocess env clears `CURSEFORGE_API_KEY`. Never inherit a host API key.
 - Total statement coverage must stay ≥ **90.0%**. New packages and new
   files should be ≥ 90% too; the maintainer will ask for tests when a
   new public function is added without a corresponding `It` block.
@@ -341,7 +340,7 @@ Required commands before commit (in this order):
 
 ```bash
 go mod tidy
-gofmt -w $(find . -name '*.go' -not -path './.cache/*')
+gofmt -w $(find . -name '*.go' -not -path './.mcmod/*')
 golangci-lint fmt ./...                # applies gofmt + goimports
 golangci-lint run ./...                # 0 issues
 go test ./... -coverprofile=coverage.out
@@ -569,7 +568,6 @@ Strict priority order, first non-empty wins:
 
 1. `CURSEFORGE_API_KEY` environment variable.
 2. `.mcmod/config.json` (project-level).
-3. `~/.config/mcmod/config.json` (user-level).
 
 Do not add a fourth tier. Do not read keys from `packspec.json`.
 
@@ -593,8 +591,8 @@ Do not add a fourth tier. Do not read keys from `packspec.json`.
   - A `github` (Modrinth `.mrpack`) value is reserved but not yet
     accepted by the CLI.
 - Cache layout (docs/010-downloader.md):
-  `.cache/curseforge/<modId>/<fileId>/<fileName>` and
-  `.cache/github-release/<owner>/<repo>/<tag>/<assetName>`.
+  `.mcmod/cache/curseforge/<modId>/<fileId>/<fileName>` and
+  `.mcmod/cache/github-release/<owner>/<repo>/<tag>/<assetName>`.
   SHA256 is computed for every downloaded file.
 
 ## File & Path Conventions
@@ -604,13 +602,13 @@ Do not add a fourth tier. Do not read keys from `packspec.json`.
 - `.mcmod/config.json` is the project config; created by
   `mcmod set cf-key ... --project` or `mcmod config set-cf-key ...`. Holds
   the project-level CurseForge API key.
-- `.cache/resolved/<mcVersion>-<loader>.json` is the resolver's id cache
+- `.mcmod/cache/resolved/<mcVersion>-<loader>.json` is the resolver's id cache
   (mod key → modId/fileId). Written by `mcmod lock` after a successful
   resolver run; read on the next run to skip the CF search step. Stale
   entries are tolerable because lock re-validates the file. Treat as
   transient cache, not project state.
-- `~/.config/mcmod/config.json` is the user config; created by
-  `mcmod set cf-key ...` (default) or `--global`.
+- `mcmod set cf-key ...` and `mcmod config set-cf-key ...` write `.mcmod/config.json`;
+  `--project` and `--global` are compatibility flags.
 - `.env` is for local development only and **must** stay in `.gitignore`.
   Do not commit secrets.
 - `.golangci.yml` is the lint config. Editing it is a normal change,
@@ -656,7 +654,7 @@ discussion in the PR:
 
 CI and release workflows must stay aligned with the repository docs
 and implemented CLI behavior. GitHub Actions should cache Go modules
-and the Go build cache, but must not cache project `.cache/`, `.mcmod/`,
+and the Go build cache, but must not cache project `.mcmod/`,
 `releases/`, `dist/`, release archives, coverage output, or secrets.
 
 The CLI release assets must use these names:
