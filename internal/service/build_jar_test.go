@@ -45,8 +45,8 @@ var _ = Describe("Service resolveModJar", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.MkdirAll(filepath.Join(dir, ".cache", "local"), 0755)
-		os.WriteFile(filepath.Join(dir, ".cache", "local", "fb.jar"), []byte("data"), 0644)
+		os.MkdirAll(filepath.Join(dir, ".mcmod", "cache", "local"), 0755)
+		os.WriteFile(filepath.Join(dir, ".mcmod", "cache", "local", "fb.jar"), []byte("data"), 0644)
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "1.0", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{
@@ -135,8 +135,8 @@ var _ = Describe("Service resolveModJar", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.MkdirAll(filepath.Join(dir, ".cache", "curseforge", "123", "456"), 0755)
-		os.WriteFile(filepath.Join(dir, ".cache", "curseforge", "123", "456", "mod.jar"), []byte("data"), 0644)
+		os.MkdirAll(filepath.Join(dir, ".mcmod", "cache", "curseforge", "123", "456"), 0755)
+		os.WriteFile(filepath.Join(dir, ".mcmod", "cache", "curseforge", "123", "456", "mod.jar"), []byte("data"), 0644)
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "1.0", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{
@@ -166,8 +166,8 @@ var _ = Describe("Service resolveModJar", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.MkdirAll(filepath.Join(dir, ".cache", "github-release", "o", "r", "v1"), 0755)
-		os.WriteFile(filepath.Join(dir, ".cache", "github-release", "o", "r", "v1", "asset.jar"), []byte("data"), 0644)
+		os.MkdirAll(filepath.Join(dir, ".mcmod", "cache", "github-release", "o", "r", "v1"), 0755)
+		os.WriteFile(filepath.Join(dir, ".mcmod", "cache", "github-release", "o", "r", "v1", "asset.jar"), []byte("data"), 0644)
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "1.0", MinecraftVersion: "1.21.1",
 			Mods: map[string]domain.LockedMod{

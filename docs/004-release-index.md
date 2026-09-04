@@ -1,21 +1,15 @@
 <!--
 File: docs/004-release-index.md
-Created: 2026-06-20
-Description: Release index file format.
+Created: 2026-09-04
+Description: Defines generated release index files.
 -->
+
 # Release Index
 
-## Location
-`locks/releases/<minecraftVersion>.json`
+Release indexes live at `locks/releases/<minecraftVersion>.json`. The index
+contains `type`, `packName`, `minecraftVersion`, and `releases`. Each release
+has a unique `version`, a `type`, optional GitHub metadata, and per-loader
+artifact paths.
 
-## Schema
-- `type` (string): Index type
-- `packName` (string): Pack name
-- `minecraftVersion` (string): Minecraft version
-- `releases` (array): Release records
-
-## ReleaseRecord
-- `version` (string): Release version
-- `type` (string): Release type
-- `github` (object, optional): GitHub release metadata
-- `artifact` (object): Artifact paths by loader
+Use `mcmod lock release set`, `list`, `show`, and `delete` to manage records.
+The index is generated project state and may be committed.

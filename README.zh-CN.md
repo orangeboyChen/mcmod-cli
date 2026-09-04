@@ -18,7 +18,8 @@ Jar 解析与下载、构建产物（client / server zip）和发布索引。
 - `packspec.json` 作为唯一人工编辑的输入
 - 加载器：**NeoForge** 和 **Fabric**（支持 mod 级 loader 限定）
 - 来源类型：**CurseForge**（query）、**GitHub Release**（tag + assetPattern）、
-  **Git**（依赖另一个 mcmod 包）、**Local**（本地 jar 模板）
+  **Git packspec 包**（递归读取 `packspec.json`）、**Local**（本地 jar 模板）和
+  **URL**（用户指定下载地址）
 - `mcmod lock` 解析 source、对照已有 lock 跑增量对账（`kept / added /
   removed / failed`），写入 `locks/dependencies/<mcVersion>-<loader>.json`
 - `mcmod build` 读取 lock、跑 jar 元数据校验（必需依赖缺失、class 冲突），
@@ -65,6 +66,25 @@ mcmod lock 1.21.1 neoforge
 mcmod build 1.21.1 neoforge
 ```
 
+### Git packspec 递归依赖
+
+当一个仓库发布可复用的 `packspec.json` 时，可以这样引用：
+
+```json
+{
+  "mods": {
+    "shared-bundle": {
+      "scope": "shared",
+      "source": { "type": "git", "repo": "owner/shared-bundle" }
+    }
+  }
+}
+```
+
+执行 `mcmod lock` 时会递归展开嵌套 Git 包，按 loader 过滤，然后解析其中的
+非 Git mod。展开后的 key 会在 lock 中按仓库命名空间隔离，不会回写根目录
+`packspec.json`。Git 仓库是 packspec 输入，不是 jar 下载源。
+
 产物落在 `locks/dependencies/1.21.1-neoforge.json` 和
 `releases/v0.1.0/my-pack-1.21.1-neoforge-21.1.219-{client,server}.zip`。
 
@@ -102,9 +122,9 @@ locks/
   dependencies/<mc>-<loader>.json   # 解析后的 lock 文件
   releases/<mc>.json                # 构建发布索引
 releases/                           # 构建产物 zip（不提交）
-.cache/                             # jar 下载缓存（不提交）
-.mcmod/                             # 项目级 CLI 配置: cfKey (不提交)
-.cache/resolved/                    # resolver id 缓存: mod key -> modId/fileId (不提交)
+.mcmod/config.json                  # 项目级 CurseForge key（不提交）
+.mcmod/cache/                       # jar 与 resolver 缓存（不提交）
+.mcmod/cache/resolved/              # resolver id 缓存（不提交）
 internal/
   cli/                              # cobra 命令
   domain/                           # 数据模型、校验、存储
@@ -114,7 +134,7 @@ internal/
   graph/                            # 依赖图与版本决议
   service/                          # 业务逻辑（lock、build、release、tree）
   cache/                            # 缓存辅助
-  config/                           # 用户 / 项目 / 环境配置
+  config/                           # 项目 / 环境配置
 cmd/mcmod/                          # CLI 入口
 ```
 

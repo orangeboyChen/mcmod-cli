@@ -16,7 +16,7 @@ func ConfigureCFKey(key string) error {
 	return config.WriteProjectConfig(key)
 }
 
-// ConfigureUserCFKey sets the CurseForge API key at user level.
+// ConfigureUserCFKey is a compatibility alias for ConfigureCFKey.
 func ConfigureUserCFKey(key string) error {
 	return config.WriteUserConfig(key)
 }

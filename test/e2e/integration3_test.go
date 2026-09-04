@@ -1,7 +1,7 @@
 // File: test/e2e/integration3_test.go
 // Created: 2026-06-20
 // Description: End-to-end tests for CURSEFORGE_API_KEY resolution order
-// (env > project > user), `set` / `config` edge cases, and help/error
+// (env > project), `set` / `config` edge cases, and help/error
 // formatting.
 
 package test
@@ -16,9 +16,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// writeUserConfig writes a fake user-level config directly to a temp dir.
+// writeUserConfig writes a compatibility config directly to a temp project.
 func writeUserConfig(t GinkgoTInterface, home string, cfKey string) {
-	dir := filepath.Join(home, ".config", "mcmod")
+	dir := filepath.Join(home, ".mcmod")
 	Expect(os.MkdirAll(dir, 0700)).To(Succeed())
 	data := []byte(`{"cfKey":"` + cfKey + `"}`)
 	Expect(os.WriteFile(filepath.Join(dir, "config.json"), data, 0600)).To(Succeed())
@@ -41,82 +41,80 @@ var _ = Describe("Integration3: set / config / CURSEFORGE_API_KEY order", func()
 
 	// ============== K01: set cf-key ==============
 	Describe("K01: set cf-key", func() {
-		It("K01-1: set cf-key <key> writes user config", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "userkey")
+		It("K01-1: set cf-key <key> writes project config", func() {
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "userkey")
 			Expect(err).NotTo(HaveOccurred())
-			data, err := os.ReadFile(filepath.Join(d, ".config", "mcmod", "config.json"))
+			data, err := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(data)).To(ContainSubstring("userkey"))
 		})
 		It("K01-2: set cf-key --project writes project config", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "projkey", "--project")
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "projkey", "--project")
 			Expect(err).NotTo(HaveOccurred())
 			data, err := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(data)).To(ContainSubstring("projkey"))
 		})
-		It("K01-3: set cf-key --global writes user config", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "globalkey", "--global")
+		It("K01-3: set cf-key --global writes project config", func() {
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "globalkey", "--global")
 			Expect(err).NotTo(HaveOccurred())
-			data, err := os.ReadFile(filepath.Join(d, ".config", "mcmod", "config.json"))
+			data, err := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(data)).To(ContainSubstring("globalkey"))
 		})
-		It("K01-4: set cf-key --project does not write user config", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "projkey", "--project")
-			Expect(err).NotTo(HaveOccurred())
-			_, err = os.Stat(filepath.Join(d, ".config", "mcmod", "config.json"))
-			Expect(os.IsNotExist(err)).To(BeTrue())
-		})
-		It("K01-5: set cf-key --global does not write project config", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "globalkey", "--global")
+		It("K01-4: set cf-key --project writes project config", func() {
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "projkey", "--project")
 			Expect(err).NotTo(HaveOccurred())
 			_, err = os.Stat(filepath.Join(d, ".mcmod", "config.json"))
-			Expect(os.IsNotExist(err)).To(BeTrue())
+			Expect(err).NotTo(HaveOccurred())
+		})
+		It("K01-5: set cf-key --global writes project config", func() {
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "globalkey", "--global")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = os.Stat(filepath.Join(d, ".mcmod", "config.json"))
+			Expect(err).NotTo(HaveOccurred())
 		})
 		It("K01-6: set with insufficient args fails with hint", func() {
-			_, stderr, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key")
+			_, stderr, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key")
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("hint"))
 		})
 		It("K01-7: set with no args fails with hint", func() {
-			_, stderr, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set")
+			_, stderr, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set")
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("hint"))
 		})
 		It("K01-8: set with wrong subkey fails with hint", func() {
-			_, stderr, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "wrong-arg", "value")
+			_, stderr, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "wrong-arg", "value")
 			Expect(err).To(HaveOccurred())
 			Expect(stderr).To(ContainSubstring("hint"))
 		})
 		It("K01-9: set cf-key <key> prints 'set cf-key' on stdout", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "uk")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "uk")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(strings.TrimSpace(stdout)).To(Equal("set cf-key"))
 		})
 		It("K01-10: set cf-key does not print the key value on stdout", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "supersecretvalue")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "supersecretvalue")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).NotTo(ContainSubstring("supersecretvalue"))
 		})
 		It("K01-11: set cf-key --project overwrites previous project key", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="},
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="},
 				"set", "cf-key", "first", "--project")
 			Expect(err).NotTo(HaveOccurred())
-			_, _, err = runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="},
+			_, _, err = runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="},
 				"set", "cf-key", "second", "--project")
 			Expect(err).NotTo(HaveOccurred())
 			data, _ := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(string(data)).To(ContainSubstring("second"))
 			Expect(string(data)).NotTo(ContainSubstring("first"))
 		})
-		It("K01-12: set cf-key <key> uses HOME env to find user config dir", func() {
-			// Use a different HOME than d to confirm the test runner can redirect
-			// user config path. We use the d directory for HOME.
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "set", "cf-key", "xkey")
+		It("K01-12: set cf-key ignores user-directory environment variables", func() {
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "set", "cf-key", "xkey")
 			Expect(err).NotTo(HaveOccurred())
-			// user config should land in d/.config/mcmod/config.json
-			data, err := os.ReadFile(filepath.Join(d, ".config", "mcmod", "config.json"))
+			// configuration is always written to the current project.
+			data, err := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(data)).To(ContainSubstring("xkey"))
 		})
@@ -125,52 +123,52 @@ var _ = Describe("Integration3: set / config / CURSEFORGE_API_KEY order", func()
 	// ============== K02: config command ==============
 	Describe("K02: config command", func() {
 		It("K02-1: config with no args and no key shows (not set)", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("not set"))
 		})
 		It("K02-2: config with project key shows project key", func() {
 			writeProjectConfig(GinkgoT(), d, "projkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("projkey"))
 		})
 		It("K02-3: config with user key shows user key when no project", func() {
 			writeUserConfig(GinkgoT(), d, "userkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("userkey"))
 		})
 		It("K02-4: config prefers project over user when both exist", func() {
 			writeUserConfig(GinkgoT(), d, "userkey")
 			writeProjectConfig(GinkgoT(), d, "projkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("projkey"))
 			Expect(stdout).NotTo(ContainSubstring("userkey"))
 		})
 		It("K02-5: config set-cf-key <key> writes project config and prints confirmation", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config", "set-cf-key", "ckey")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config", "set-cf-key", "ckey")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("saved"))
 			data, _ := os.ReadFile(filepath.Join(d, ".mcmod", "config.json"))
 			Expect(string(data)).To(ContainSubstring("ckey"))
 		})
 		It("K02-6: config after set-cf-key shows the new key", func() {
-			_, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config", "set-cf-key", "ckey")
+			_, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config", "set-cf-key", "ckey")
 			Expect(err).NotTo(HaveOccurred())
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("ckey"))
 		})
 		It("K02-7: config <unknown> falls back to showing current state", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config", "unknown-sub")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config", "unknown-sub")
 			Expect(err).NotTo(HaveOccurred())
 			// Falls back to showing the current state (not set)
 			Expect(stdout).To(ContainSubstring("CurseForge API key"))
 		})
 		It("K02-8: config with random subcommand prints current state", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config", "wat")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config", "wat")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("not set"))
 		})
@@ -180,41 +178,41 @@ var _ = Describe("Integration3: set / config / CURSEFORGE_API_KEY order", func()
 	Describe("K03: CURSEFORGE_API_KEY env priority", func() {
 		It("K03-1: env key wins over project key", func() {
 			writeProjectConfig(GinkgoT(), d, "projkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY=envkey"}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY=envkey"}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("envkey"))
 			Expect(stdout).NotTo(ContainSubstring("projkey"))
 		})
-		It("K03-2: env key wins over user key", func() {
+		It("K03-2: env key wins over project config", func() {
 			writeUserConfig(GinkgoT(), d, "userkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY=envkey"}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY=envkey"}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("envkey"))
 			Expect(stdout).NotTo(ContainSubstring("userkey"))
 		})
-		It("K03-3: env key wins over project + user combined", func() {
+		It("K03-3: env key wins over project config", func() {
 			writeProjectConfig(GinkgoT(), d, "projkey")
 			writeUserConfig(GinkgoT(), d, "userkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY=envkey"}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY=envkey"}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("envkey"))
 		})
-		It("K03-4: empty env falls through to project then user", func() {
+		It("K03-4: empty env uses project config", func() {
 			writeUserConfig(GinkgoT(), d, "userkey")
 			writeProjectConfig(GinkgoT(), d, "projkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("projkey"))
 			Expect(stdout).NotTo(ContainSubstring("userkey"))
 		})
-		It("K03-5: empty env + no project falls through to user", func() {
+		It("K03-5: empty env with no project is not set", func() {
 			writeUserConfig(GinkgoT(), d, "userkey")
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("userkey"))
 		})
-		It("K03-6: empty env + no project + no user shows (not set)", func() {
-			stdout, _, err := runMcmodWithEnv(d, []string{"HOME=" + d, "XDG_CONFIG_HOME=" + d, "CURSEFORGE_API_KEY="}, "config")
+		It("K03-6: empty env with no project shows (not set)", func() {
+			stdout, _, err := runMcmodWithEnv(d, []string{"CURSEFORGE_API_KEY="}, "config")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(ContainSubstring("not set"))
 		})

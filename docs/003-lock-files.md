@@ -1,35 +1,39 @@
 <!--
 File: docs/003-lock-files.md
-Created: 2026-06-20
-Description: Dependency lock file format.
+Created: 2026-09-04
+Description: Defines generated dependency lock files.
 -->
+
 # Lock Files
 
-## Location
-`locks/dependencies/<minecraftVersion>-<loader>.json`
+`mcmod lock` writes `locks/dependencies/<minecraftVersion>-<loader>.json`.
+The top-level fields are `minecraftVersion`, `loader`, optional
+`loaderVersion`, and `mods`.
 
-## Schema
-- `loader` (string): Loader name
-- `loaderVersion` (string, optional): Loader version
-- `minecraftVersion` (string): Minecraft version
-- `mods` (object): Locked mod entries keyed by normalized ID
+Each mod entry stores `name`, `version`, `scope`, and a resolved `source`.
+It may also contain `identity`, `dependencies` (an array of `{id, required}`
+references), and the resolver-written `hash` fingerprint. Git bundles are
+expanded before locking: their child mods appear as flattened entries with
+repository-namespaced keys. The root `packspec.json` is never changed.
 
-## LockedMod
-- `name` (string, optional): Display name
-- `version` (string, optional): Resolved version
-- `scope` (string): "shared", "client", or "server"
-- `identity` (object, optional): Identity info
-- `dependencies` (array): Dependency references
-- `source` (object): Locked source details
+Repeated locks keep unchanged entries, add new entries, and remove entries no
+longer reachable from the root specification. Progress and partial failures
+are printed to stderr, not persisted in the lock JSON.
 
-## LockedSource
-- `type` (string): One of "curseforge", "github-release", "git", "local"
-- The remaining fields depend on `type`. See docs/005-source-resolution.md
-  for the per-type schema.
-
-## Lock Run Summary
-The `mcmod lock` command does NOT write per-failure or per-removal records
-into the lock file itself. Instead, the run summary (added/kept/removed/failed
-counts and per-failure details) is written to stderr so the lock file
-stays a clean source of truth that matches this schema. The CLI is
-responsible for surfacing partial failures to the operator.
+```json
+{
+  "minecraftVersion": "1.21.1",
+  "loader": "neoforge",
+  "loaderVersion": "21.1.219",
+  "mods": {
+    "create": {
+      "name": "Create",
+      "version": "0.6.0",
+      "scope": "shared",
+      "source": {"type": "curseforge", "modId": 328085, "fileId": 5812340, "fileName": "create.jar"},
+      "dependencies": [{"id": "flywheel", "required": true}],
+      "hash": "sha256:..."
+    }
+  }
+}
+```

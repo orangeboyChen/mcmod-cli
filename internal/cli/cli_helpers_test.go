@@ -19,20 +19,12 @@ import (
 
 // chdirTemp changes the working directory to a fresh temp dir for the duration
 // of the test and writes the provided packspec.json. Returns the temp dir.
-// The test process is also isolated from the host user config by redirecting
-// XDG_CONFIG_HOME and HOME to a fresh empty temp dir.
+// Project configuration stays inside that temporary working directory.
 func chdirTemp(spec string) string {
 	dir := GinkgoT().TempDir()
 	orig, _ := os.Getwd()
-	origHome := os.Getenv("HOME")
-	origXDG := os.Getenv("XDG_CONFIG_HOME")
-	cfgDir := GinkgoT().TempDir()
-	Expect(os.Setenv("XDG_CONFIG_HOME", cfgDir)).To(Succeed())
-	Expect(os.Setenv("HOME", cfgDir)).To(Succeed())
 	DeferCleanup(func() {
 		_ = os.Chdir(orig)
-		_ = os.Setenv("HOME", origHome)
-		_ = os.Setenv("XDG_CONFIG_HOME", origXDG)
 	})
 	Expect(os.Chdir(dir)).To(Succeed())
 	if spec != "" {

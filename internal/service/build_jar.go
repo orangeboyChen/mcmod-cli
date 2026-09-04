@@ -16,7 +16,7 @@ import (
 )
 
 // resolveModJar returns the on-disk path to the mod jar for a given lock entry.
-// local sources use the spec's path directly; remote sources look in .cache.
+// local sources use the spec's path directly; remote sources look in .mcmod/cache.
 func (bc *buildContext) resolveModJar(key string, locked domain.LockedMod) (string, error) {
 	src := locked.Source
 	switch src.Type {
@@ -31,10 +31,10 @@ func (bc *buildContext) resolveModJar(key string, locked domain.LockedMod) (stri
 			path = src.Path
 		}
 		// Fallback: if the path is empty but FileName is set, try to find it in
-		// .cache/local/ and the project root.
+		// .mcmod/cache/local/ and the project root.
 		if path == "" && src.FileName != "" {
 			candidates := []string{
-				filepath.Join(bc.RootDir, ".cache", "local", src.FileName),
+				filepath.Join(bc.RootDir, cache.CacheDir, "local", src.FileName),
 				filepath.Join(bc.RootDir, src.FileName),
 			}
 			for _, c := range candidates {
@@ -61,7 +61,7 @@ func (bc *buildContext) resolveModJar(key string, locked domain.LockedMod) (stri
 		if src.ModID == 0 || src.FileID == 0 || src.FileName == "" {
 			return "", fmt.Errorf("mod %s: curseforge source missing modId/fileId/fileName in lock", key)
 		}
-		p := filepath.Join(bc.RootDir, ".cache", "curseforge", fmt.Sprint(src.ModID), fmt.Sprint(src.FileID), src.FileName)
+		p := filepath.Join(bc.RootDir, cache.CurseForgePath(fmt.Sprint(src.ModID), fmt.Sprint(src.FileID), src.FileName))
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
 		}
@@ -77,7 +77,7 @@ func (bc *buildContext) resolveModJar(key string, locked domain.LockedMod) (stri
 		if len(parts) != 2 {
 			return "", fmt.Errorf("mod %s: invalid github repo %q", key, src.Repo)
 		}
-		p := filepath.Join(bc.RootDir, ".cache", "github-release", parts[0], parts[1], src.Tag, src.AssetName)
+		p := filepath.Join(bc.RootDir, cache.GitHubReleasePath(parts[0], parts[1], src.Tag, src.AssetName))
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
 		}
@@ -90,7 +90,7 @@ func (bc *buildContext) resolveModJar(key string, locked domain.LockedMod) (stri
 	}
 }
 
-// populateCache downloads a remote mod jar into the local .cache/ tree on
+// populateCache downloads a remote mod jar into the local .mcmod/cache/ tree on
 // demand. It is called when resolveModJar cannot find a cached file so the
 // build step stays self-contained (lock is purely a resolve step).
 func (bc *buildContext) populateCache(key string, src *domain.LockedSource) error {
