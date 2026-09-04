@@ -44,6 +44,7 @@ Flags:
 
 Global options:
   -h, --help                Show help
+  -v, --version             Print version information
 `
 
 // rootLong is the long description for the root command. It is rendered by

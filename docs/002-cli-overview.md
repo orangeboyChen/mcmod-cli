@@ -318,6 +318,14 @@ $ mcmod version
 mcmod version 0.1.0
 ```
 
+The root command also accepts `-v` and `--version`; both flags print the same
+hard-coded release version as `mcmod version`.
+
+```text
+$ mcm -v
+mcmod version 0.1.0
+```
+
 ## Exit Codes
 
 - `0` on success.

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/orangeboyChen/mcmod-cli/internal/config"
+	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
 // NewApp creates a new mcmod CLI application.
@@ -20,11 +21,13 @@ func NewApp() *cobra.Command {
 		Use:                        "mcmod",
 		Short:                      "Minecraft modpack management tool",
 		Long:                       rootLong,
+		Version:                    domain.Version,
 		SilenceErrors:              true,
 		SilenceUsage:               true,
 		DisableAutoGenTag:          true,
 		SuggestionsMinimumDistance: 2,
 	}
+	root.SetVersionTemplate("mcmod version {{.Version}}\n")
 	// Register a single persistent `-h, --help` flag on the root command
 	// so every subcommand inherits it via mergePersistentFlags. This
 	// prevents cobra from lazily adding a per-subcommand "help for X"

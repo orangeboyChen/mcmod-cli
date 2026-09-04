@@ -28,6 +28,7 @@ it into per-loader lock files, signed zips, and a release index.
 - `mcmod tree` renders the resolved dependency tree
 - Cross-platform binaries via `go install` or GitHub releases
 - The short executable name `mcm` is also available (`go install ./cmd/mcm`).
+- `mcm version`, `mcm -v`, and `mcm --version` print the hard-coded CLI version.
 
 ## Quick Start
 
@@ -84,6 +85,19 @@ Outputs land in `locks/dependencies/1.21.1-neoforge.json` and
 
 Run `mcmod --help` for the full command tree with positional argument
 placeholders.
+
+## Releases
+
+The `Bump Stable Release Version` workflow can be run manually with a
+`major`, `minor` (default), or `patch` increment. An optional `base_version`
+(`x.y.z`) overrides the latest release as the increment base. It creates a `release`
+labeled pull request. After that PR is merged, `Tag Stable Release` creates a
+`vX.Y.Z` tag and the release workflow builds native Linux amd64/arm64,
+Windows amd64, and macOS amd64/arm64 archives in parallel before publishing
+the GitHub Release.
+
+The `Publish Beta Release` workflow accepts the same optional `base_version`, creates a `vX.Y.Z-canary.N` tag directly
+and publishes a prerelease using the same native platform matrix.
 
 ## Project Layout
 

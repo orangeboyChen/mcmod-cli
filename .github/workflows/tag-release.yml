@@ -1,0 +1,41 @@
+# File: .github/workflows/tag-release.yml
+# Created: 2026-09-04
+# Description: Tags merged stable release pull requests and publishes their GitHub Releases.
+
+name: Tag Stable Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Create stable version tag
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(sed -nE 's/^const Version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' internal/domain/common.go)"
+          test -n "$version"
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag"; then
+            echo "tag $tag already exists" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
