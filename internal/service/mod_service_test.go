@@ -70,7 +70,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("buildOneArtifact errors for unsupported target", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			oldWd, _ := os.Getwd()
 			Expect(os.Chdir(dir)).To(Succeed())
 			defer os.Chdir(oldWd)
@@ -82,7 +82,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("BuildArtifact with target both produces two zips", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			oldWd, _ := os.Getwd()
 			Expect(os.Chdir(dir)).To(Succeed())
 			defer os.Chdir(oldWd)
@@ -95,7 +95,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("BuildArtifactWith with existing artifact + force overwrites", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			oldWd, _ := os.Getwd()
 			Expect(os.Chdir(dir)).To(Succeed())
 			defer os.Chdir(oldWd)
@@ -124,7 +124,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("includes config dir when present", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			cfgDir := filepath.Join(dir, "config")
 			Expect(os.MkdirAll(cfgDir, 0755)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(cfgDir, "common.toml"), []byte("k=v"), 0644)).To(Succeed())
@@ -138,7 +138,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("includes defaultconfigs dir for server", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			dcDir := filepath.Join(dir, "defaultconfigs")
 			Expect(os.MkdirAll(dcDir, 0755)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(dcDir, "server-common.toml"), []byte("k=v"), 0644)).To(Succeed())
@@ -152,7 +152,7 @@ var _ = Describe("Service boost coverage", func() {
 		It("includes resourcepacks dir for client", func() {
 			dir := GinkgoT().TempDir()
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			rpDir := filepath.Join(dir, "resourcepacks")
 			Expect(os.MkdirAll(rpDir, 0755)).To(Succeed())
 			Expect(os.WriteFile(filepath.Join(rpDir, "rp.zip"), []byte("data"), 0644)).To(Succeed())
@@ -184,7 +184,7 @@ var _ = Describe("Service boost coverage", func() {
 			Expect(os.Chdir(dir)).To(Succeed())
 			defer os.Chdir(oldWd)
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			spec := &domain.PackSpec{PackName: "p", PackVersion: "0.1.0", Mods: map[string]domain.ModSpec{"a": {Scope: "shared", Source: domain.ModSource{Type: "local", Path: jarPath}}}}
 			lock := &domain.PackLock{Loader: "neoforge", LoaderVersion: "", MinecraftVersion: "1.21.1", Mods: map[string]domain.LockedMod{"a": {Name: "A", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: jarPath, FileName: "a.jar"}}}}
 			Expect(BuildArtifactWith(spec, lock, "1.21.1", "client", true)).To(Succeed())
@@ -198,7 +198,7 @@ var _ = Describe("Service boost coverage", func() {
 			Expect(os.Chdir(dir)).To(Succeed())
 			defer os.Chdir(oldWd)
 			jarPath := filepath.Join(dir, "a.jar")
-			Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+			writeValidTestJar(jarPath)
 			spec := &domain.PackSpec{
 				PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge:21.1.219"},
 				Mods: map[string]domain.ModSpec{
@@ -428,7 +428,7 @@ var _ = Describe("Service mass2", func() {
 		old, _ := os.Getwd()
 		os.Chdir(dir)
 		defer os.Chdir(old)
-		Expect(os.WriteFile("a.jar", []byte("data"), 0644)).To(Succeed())
+		writeValidTestJar("a.jar")
 		Expect(BuildArtifact(spec, lock, "1.21.1", "server")).To(Succeed())
 	})
 	It("ReadPackSpec with dir", func() {
@@ -523,6 +523,9 @@ var _ = Describe("Service mass", func() {
 	})
 
 	It("ConfigureUserCFKey saves config", func() {
+		dir := GinkgoT().TempDir()
+		Expect(os.Setenv("XDG_CONFIG_HOME", dir)).To(Succeed())
+		DeferCleanup(func() { Expect(os.Unsetenv("XDG_CONFIG_HOME")).To(Succeed()) })
 		Expect(ConfigureUserCFKey("uk")).To(Succeed())
 	})
 
@@ -649,7 +652,7 @@ var _ = Describe("BuildLockWithExisting", func() {
 				"local-m": {Name: "local-m", Source: domain.ModSource{Type: "local", Path: "./local.jar"}},
 			},
 		}
-		Expect(os.WriteFile("./local.jar", []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar("./local.jar")
 		DeferCleanup(func() { _ = os.Remove("./local.jar") })
 
 		existing := &domain.PackLock{
@@ -891,7 +894,7 @@ var _ = Describe("BuildLockWithExisting extra branches", func() {
 				"x": {Name: "X", Source: domain.ModSource{Type: "local", Path: "./x.jar"}},
 			},
 		}
-		Expect(os.WriteFile("./x.jar", []byte("y"), 0644)).To(Succeed())
+		writeValidTestJar("./x.jar")
 		DeferCleanup(func() { _ = os.Remove("./x.jar") })
 
 		src := domain.ModSource{Type: "local", Path: "./x.jar"}
@@ -923,7 +926,7 @@ var _ = Describe("BuildLockWithExisting more branches", func() {
 				"x": {Name: "X", Source: domain.ModSource{Type: "local", Path: "./x.jar"}},
 			},
 		}
-		Expect(os.WriteFile("./x.jar", []byte("y"), 0644)).To(Succeed())
+		writeValidTestJar("./x.jar")
 		DeferCleanup(func() { _ = os.Remove("./x.jar") })
 
 		// Existing has a stale hash (different from current fingerprint).

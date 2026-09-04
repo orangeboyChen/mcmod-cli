@@ -102,7 +102,12 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		// without trying to download it (the test does not need network).
 		ghDir := filepath.Join(".cache", "github-release", "o", "r", "v1")
 		Expect(os.MkdirAll(ghDir, 0755)).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(ghDir, "a.jar"), []byte("gh"), 0644)).To(Succeed())
+		writeValidTestJar(filepath.Join(ghDir, "a.jar"))
+		for _, item := range []struct{ modID, fileID string }{{"100", "1001"}, {"200", "2002"}, {"300", "3003"}} {
+			cacheDir := filepath.Join(".cache", "curseforge", item.modID, item.fileID)
+			Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
+			writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
+		}
 
 		spec := &domain.PackSpec{
 			PackName: "p", ServerPackName: "p-server", PackVersion: "0.4.0",
@@ -168,6 +173,9 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		wd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
+		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
+		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
 		_, err := BuildArtifactCF(spec, lock, "1.21.1", true)
 		Expect(err).NotTo(HaveOccurred())
@@ -180,7 +188,7 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 	It("errors when no curseforge-sourced mods are present in the lock", func() {
 		dir := GinkgoT().TempDir()
 		jar := filepath.Join(dir, "a.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 		spec := &domain.PackSpec{PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge:1.0"}}
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "1.0", MinecraftVersion: "1.21.1",
@@ -191,6 +199,9 @@ var _ = Describe("BuildArtifactCF end-to-end", func() {
 		wd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
+		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
+		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
 		_, err := BuildArtifactCF(spec, lock, "1.21.1", true)
 		Expect(err).To(HaveOccurred())
@@ -232,6 +243,9 @@ var _ = Describe("BuildArtifactCF overrides", func() {
 		Expect(os.WriteFile("config/common.cfg", []byte("cfg"), 0644)).To(Succeed())
 		Expect(os.MkdirAll("resourcepacks", 0755)).To(Succeed())
 		Expect(os.WriteFile("resourcepacks/pack.zip", []byte("rp"), 0644)).To(Succeed())
+		cacheDir := filepath.Join(".cache", "curseforge", "1", "2")
+		Expect(os.MkdirAll(cacheDir, 0755)).To(Succeed())
+		writeValidTestJar(filepath.Join(cacheDir, "a.jar"))
 
 		spec := &domain.PackSpec{PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge:1.0"}}
 		lock := &domain.PackLock{

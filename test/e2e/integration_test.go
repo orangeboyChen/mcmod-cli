@@ -54,12 +54,20 @@ func seedFakeJar(path, metaPath, metaContent string) {
 	_, _ = io.WriteString(class, "fake-class-data")
 }
 
-// seedCachedJar creates an empty placeholder jar in the cache directory tree.
+// seedCachedJar creates a minimal valid jar in the cache directory tree.
 func seedCachedJar(path string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		Fail(err.Error())
 	}
-	Expect(os.WriteFile(path, []byte("placeholder-jar"), 0644)).To(Succeed())
+	f, err := os.Create(path)
+	Expect(err).NotTo(HaveOccurred())
+	w := zip.NewWriter(f)
+	e, err := w.Create("META-INF/test.txt")
+	Expect(err).NotTo(HaveOccurred())
+	_, err = e.Write([]byte("test"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(w.Close()).To(Succeed())
+	Expect(f.Close()).To(Succeed())
 }
 
 // countZipEntries returns the number of file entries in a zip archive.

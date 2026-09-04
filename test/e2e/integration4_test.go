@@ -8,6 +8,7 @@ package test
 
 import (
 	"archive/zip"
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,9 +26,14 @@ func setupBuildableProject(d string, mcVersion, loader, loaderVersion string) {
 	os.MkdirAll(filepath.Join(d, "config"), 0755)
 	os.MkdirAll(filepath.Join(d, "defaultconfigs"), 0755)
 	os.MkdirAll(filepath.Join(d, "resourcepacks"), 0755)
-	os.WriteFile(filepath.Join(d, "mods", "shared.jar"), []byte("shared-content"), 0644)
-	os.WriteFile(filepath.Join(d, "mods", "client.jar"), []byte("client-content"), 0644)
-	os.WriteFile(filepath.Join(d, "mods", "server.jar"), []byte("server-content"), 0644)
+	for _, name := range []string{"shared.jar", "client.jar", "server.jar"} {
+		var buf bytes.Buffer
+		w := zip.NewWriter(&buf)
+		e, _ := w.Create("META-INF/test.txt")
+		_, _ = e.Write([]byte("test"))
+		_ = w.Close()
+		_ = os.WriteFile(filepath.Join(d, "mods", name), buf.Bytes(), 0644)
+	}
 	os.WriteFile(filepath.Join(d, "config", "common.cfg"), []byte("cfg"), 0644)
 	os.WriteFile(filepath.Join(d, "defaultconfigs", "default.toml"), []byte("d"), 0644)
 	os.WriteFile(filepath.Join(d, "resourcepacks", "rp.zip"), []byte("rp"), 0644)
@@ -77,7 +83,12 @@ func setupCfBuildableProject(d string, mcVersion, loader, loaderVersion string) 
 	// Stage the cached jar.
 	cached := filepath.Join(d, ".cache", "curseforge", "111", "222", "cf-mod.jar")
 	Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
-	Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	e, _ := w.Create("META-INF/test.txt")
+	_, _ = e.Write([]byte("test"))
+	_ = w.Close()
+	Expect(os.WriteFile(cached, buf.Bytes(), 0644)).To(Succeed())
 	lock := &domain.PackLock{
 		Loader: loader, LoaderVersion: loaderVersion,
 		MinecraftVersion: mcVersion,

@@ -22,8 +22,9 @@ it into per-loader lock files, signed zips, and a release index.
 - `mcmod lock` resolves sources, runs an incremental `kept / added / removed
   / failed` reconciliation against the existing lock, and writes
   `locks/dependencies/<mcVersion>-<loader>.json`
-- `mcmod build` reads the lock, runs jar metadata validation (missing
-  required deps, class conflicts), and produces client / server zips
+- `mcmod build` reads the lock, validates every selected jar (all class
+  conflicts, unreadable jars, and missing required metadata dependencies),
+  and produces client / server zips
 - `mcmod lock release` maintains `locks/releases/<mcVersion>.json`
 - `mcmod tree` renders the resolved dependency tree
 - Cross-platform binaries via `go install` or GitHub releases

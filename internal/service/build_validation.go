@@ -8,45 +8,163 @@ import (
 	"archive/zip"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/orangeboyChen/mcmod-cli/internal/metadata"
 )
 
-// detectClassConflicts walks every jar in modFiles and reports any pair of
-// jars that share a class entry. The returned error mentions the duplicated
-// class path and the two jar names so the operator can remove the conflict.
-func detectClassConflicts(modFiles map[string]string) error {
-	type seen struct {
-		key  string
-		path string
-	}
-	owners := make(map[string]seen)
-	for key, jarPath := range modFiles {
-		r, err := zip.OpenReader(jarPath)
-		if err != nil {
-			continue
-		}
-		for _, f := range r.File {
-			if !strings.HasSuffix(f.Name, ".class") {
-				continue
-			}
-			if prev, ok := owners[f.Name]; ok {
-				r.Close()
-				return fmt.Errorf("build: duplicate class path %q in mods %q (%s) and %q (%s)\nhint: remove one of the conflicting jars", f.Name, prev.key, filepath.Base(prev.path), key, filepath.Base(jarPath))
-			}
-			owners[f.Name] = seen{key: key, path: jarPath}
-		}
-		r.Close()
-	}
-	return nil
+type modJarScan struct {
+	key      string
+	path     string
+	metadata *metadata.ModInfo
 }
 
-// builtInModDeps is the set of internal mod ids that we never require as
-// user-provided mods. These are loader / runtime helpers that ship with
-// the loader itself; spec 7.5.11 says they must not be required. The
-// whitelist is keyed by loader family so e.g. `fabricloader` is OK on
-// fabric but unknown on neoforge.
+// validateModFiles checks all selected mod jars before an artifact is written.
+// It reports every class conflict, unreadable jar, and missing required
+// dependency found in the same pass.
+func validateModFiles(bc *buildContext, modFiles map[string]string) error {
+	keys := make([]string, 0, len(modFiles))
+	for key := range modFiles {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	owners := make(map[string][]modJarScan)
+	scans := make([]modJarScan, 0, len(keys))
+	var unreadable []string
+	for _, key := range keys {
+		jarPath := modFiles[key]
+		r, err := zip.OpenReader(jarPath)
+		if err != nil {
+			unreadable = append(unreadable, fmt.Sprintf("  - %s (%s): %v", key, filepath.Base(jarPath), err))
+			continue
+		}
+		for _, entry := range r.File {
+			if strings.HasSuffix(entry.Name, ".class") && !strings.HasSuffix(entry.Name, "/") {
+				owners[entry.Name] = append(owners[entry.Name], modJarScan{key: key, path: jarPath})
+			}
+		}
+		_ = r.Close()
+		info, metadataErr := metadata.ReadJarMetadata(jarPath)
+		if metadataErr != nil || info == nil || info.ModID == "" {
+			info = nil
+		}
+		scans = append(scans, modJarScan{key: key, path: jarPath, metadata: info})
+	}
+
+	var sections []string
+	var conflicts []string
+	classPaths := make([]string, 0, len(owners))
+	for classPath := range owners {
+		classPaths = append(classPaths, classPath)
+	}
+	sort.Strings(classPaths)
+	for _, classPath := range classPaths {
+		entries := owners[classPath]
+		if len(entries) < 2 {
+			continue
+		}
+		parts := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			parts = append(parts, fmt.Sprintf("%s (%s)", entry.key, filepath.Base(entry.path)))
+		}
+		conflicts = append(conflicts, fmt.Sprintf("  - %s: %s", classPath, strings.Join(parts, ", ")))
+	}
+	if len(conflicts) > 0 {
+		sections = append(sections, "class conflicts:\n"+strings.Join(conflicts, "\n"))
+	}
+	if len(unreadable) > 0 {
+		sections = append(sections, "unreadable jars:\n"+strings.Join(unreadable, "\n"))
+	}
+	missing := collectMissingRequiredDeps(bc, scans)
+	if len(missing) > 0 {
+		lines := make([]string, 0, len(missing))
+		for _, item := range missing {
+			lines = append(lines, "  - "+item)
+		}
+		sections = append(sections, "missing required dependencies:\n"+strings.Join(lines, "\n"))
+	}
+	if len(sections) == 0 {
+		return nil
+	}
+	return fmt.Errorf("build: mod validation failed\n%s\nhint: resolve every listed conflict or dependency before rebuilding", strings.Join(sections, "\n"))
+}
+
+func detectMissingRequiredDeps(bc *buildContext, modFiles map[string]string) error {
+	scans := make([]modJarScan, 0, len(modFiles))
+	for key, jarPath := range modFiles {
+		info, err := metadata.ReadJarMetadata(jarPath)
+		if err == nil && info != nil && info.ModID != "" {
+			scans = append(scans, modJarScan{key: key, path: jarPath, metadata: info})
+		}
+	}
+	missing := collectMissingRequiredDeps(bc, scans)
+	if len(missing) == 0 {
+		return nil
+	}
+	lines := make([]string, 0, len(missing))
+	for _, item := range missing {
+		lines = append(lines, "  - "+item)
+	}
+	return fmt.Errorf("build: mod validation failed\nmissing required dependencies:\n%s\nhint: resolve every listed conflict or dependency before rebuilding", strings.Join(lines, "\n"))
+}
+
+type missingDependency struct {
+	modID   string
+	version string
+	owners  []string
+}
+
+func collectMissingRequiredDeps(bc *buildContext, scans []modJarScan) []string {
+	provided := make(map[string]bool)
+	for _, scan := range scans {
+		if scan.metadata != nil {
+			provided[strings.ToLower(scan.metadata.ModID)] = true
+		}
+	}
+	whitelist := builtInModDeps[loaderFamily(bc.Loader)]
+	missing := make(map[string]*missingDependency)
+	for _, scan := range scans {
+		if scan.metadata == nil {
+			continue
+		}
+		for _, dep := range scan.metadata.Dependencies {
+			if !dep.Required {
+				continue
+			}
+			id := strings.ToLower(dep.ModID)
+			if whitelist[id] || provided[id] {
+				continue
+			}
+			version := dep.Ref
+			if version == "" {
+				version = "any"
+			}
+			item, ok := missing[id]
+			if !ok {
+				item = &missingDependency{modID: id, version: version}
+				missing[id] = item
+			}
+			if item.version == "any" && version != "any" {
+				item.version = version
+			}
+			item.owners = append(item.owners, fmt.Sprintf("%s requires %s", scan.key, version))
+		}
+	}
+	ids := make([]string, 0, len(missing))
+	for id := range missing {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		item := missing[id]
+		sort.Strings(item.owners)
+		result = append(result, fmt.Sprintf("%s %s; required by %s", item.modID, item.version, strings.Join(item.owners, ", ")))
+	}
+	return result
+}
+
 var builtInModDeps = map[string]map[string]bool{
 	"neoforge": {
 		"minecraft":  true,
@@ -63,79 +181,6 @@ var builtInModDeps = map[string]map[string]bool{
 		"fabric-api":                          true,
 		"fabric-rendering-data-attachment-v1": true,
 	},
-}
-
-// detectMissingRequiredDeps walks every resolved jar in modFiles, reads
-// its loader-specific metadata, and reports any required dependency that
-// is not provided by another jar in the build set. Per spec 7.5.32-34
-// this check happens at build time and never short-circuits on --force.
-// Errors follow the spec 7.8 format (error: ... hint: ...).
-func detectMissingRequiredDeps(bc *buildContext, modFiles map[string]string) error {
-	// index every jar's internal mod id and the key it came from.
-	type slot struct {
-		key     string
-		jarPath string
-	}
-	indexed := make(map[string]slot)
-	for key, jarPath := range modFiles {
-		info, err := metadata.ReadJarMetadata(jarPath)
-		if err != nil || info == nil || info.ModID == "" {
-			continue
-		}
-		loaderFam := loaderFamily(bc.Loader)
-		ident := metadata.InternalIdentity(loaderFam, info.ModID)
-		indexed[ident] = slot{key: key, jarPath: jarPath}
-	}
-	// whitelist of built-in deps for the current loader family.
-	whitelist := builtInModDeps[loaderFamily(bc.Loader)]
-	for ident, owner := range indexed {
-		_ = ident // identifier is used in cross-loader fallback below
-		info, err := metadata.ReadJarMetadata(owner.jarPath)
-		if err != nil || info == nil {
-			continue
-		}
-		for _, dep := range info.Dependencies {
-			if !dep.Required {
-				continue
-			}
-			id := strings.ToLower(dep.ModID)
-			if whitelist[id] {
-				continue
-			}
-			loaderFam := loaderFamily(bc.Loader)
-			// Match against indexed jars in the current loader family first.
-			want := metadata.InternalIdentity(loaderFam, id)
-			if _, ok := indexed[want]; ok {
-				continue
-			}
-			// Fall back to a cross-loader match using the mod's own identity
-			// (the key the jar registered under, regardless of loader family).
-			crossMatched := false
-			for ident := range indexed {
-				if strings.HasSuffix(ident, ":"+id) {
-					crossMatched = true
-					break
-				}
-			}
-			if crossMatched {
-				continue
-			}
-			versionRange := dep.Ref
-			if versionRange == "" {
-				versionRange = "any"
-			}
-			return fmt.Errorf(
-				"build: missing required mod dependency: %s\n"+
-					"required by:\n"+
-					"  - %s\n"+
-					"requires:\n"+
-					"  - %s %s\n"+
-					"loader: %s\n"+
-					"hint: add a lock entry that provides %s for %s %s",
-				id, owner.key, id, versionRange, bc.Loader, id, bc.McVersion, bc.Loader)
-		}
-	}
-	return nil
 }
 
 // loaderFamily returns the loader family used by metadata identifiers per

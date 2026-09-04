@@ -23,7 +23,7 @@ var _ = Describe("Service buildZip direct", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("aaa"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.7.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -134,7 +134,7 @@ var _ = Describe("buildZipWith with at least one mod", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		bc := &buildContext{RootDir: dir, Loader: "neoforge", McVersion: "1.21.1"}
 		out := filepath.Join(dir, "out.zip")
@@ -151,7 +151,7 @@ var _ = Describe("buildZipWith with at least one mod", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		// Create a server.properties file that should be packaged.
 		Expect(os.WriteFile(filepath.Join(dir, "server.properties"), []byte("p"), 0644)).To(Succeed())
@@ -191,7 +191,7 @@ var _ = Describe("addFileToZip and addDirToZip error paths", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("jar"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		bc := &buildContext{RootDir: dir, Loader: "neoforge", McVersion: "1.21.1"}
 		out := filepath.Join(dir, "server.zip")
@@ -206,7 +206,7 @@ var _ = Describe("addFileToZip and addDirToZip error paths", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		bc := &buildContext{RootDir: dir, Loader: "fabric", McVersion: "1.21.1"}
 		out := filepath.Join(dir, "client.zip")
@@ -224,7 +224,7 @@ var _ = Describe("buildZipWith with multiple mods in non-sorted order", func() {
 
 		// Create multiple jars with names that would test the sort path.
 		for _, k := range []string{"z-mod", "a-mod", "m-mod"} {
-			Expect(os.WriteFile(filepath.Join(dir, k+".jar"), []byte("x"), 0644)).To(Succeed())
+			writeValidTestJar(filepath.Join(dir, k+".jar"))
 		}
 
 		bc := &buildContext{RootDir: dir, Loader: "neoforge", McVersion: "1.21.1"}
@@ -270,7 +270,7 @@ var _ = Describe("addDirToZip and buildZipWith server target", func() {
 		Expect(os.WriteFile(filepath.Join(dir, "server.properties"), []byte("p"), 0644)).To(Succeed())
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		bc := &buildContext{RootDir: dir, Loader: "neoforge", McVersion: "1.21.1"}
 		out := filepath.Join(dir, "server.zip")

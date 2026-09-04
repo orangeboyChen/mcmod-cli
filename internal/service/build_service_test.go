@@ -23,8 +23,8 @@ var _ = Describe("Service additional build coverage", func() {
 		defer os.Chdir(orig)
 		os.Chdir(dir)
 		// local source
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
-		os.WriteFile(filepath.Join(dir, "b.jar"), []byte("b"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
+		writeValidTestJar(filepath.Join(dir, "b.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -47,7 +47,7 @@ var _ = Describe("Service additional build coverage", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", ServerPackName: "p-server", PackVersion: "0.2.0",
 			MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge:1.0"},
@@ -67,7 +67,7 @@ var _ = Describe("Service additional build coverage", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.3.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -127,7 +127,7 @@ var _ = Describe("Service additional build coverage", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.5.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -157,7 +157,7 @@ var _ = Describe("Service BuildClientServerBuild", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", ServerPackName: "p-server", PackVersion: "0.1.0",
 			MinecraftVersion: "1.21.1", LoaderName: []string{"neoforge:1.0"},
@@ -198,7 +198,7 @@ var _ = Describe("Service build --force", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -221,7 +221,7 @@ var _ = Describe("Service build --force", func() {
 		orig, _ := os.Getwd()
 		defer os.Chdir(orig)
 		os.Chdir(dir)
-		os.WriteFile(filepath.Join(dir, "a.jar"), []byte("a"), 0644)
+		writeValidTestJar(filepath.Join(dir, "a.jar"))
 		spec := &domain.PackSpec{
 			PackName: "p", PackVersion: "0.1.0", MinecraftVersion: "1.21.1",
 			LoaderName: []string{"neoforge:1.0"},
@@ -265,7 +265,7 @@ var _ = Describe("Service BuildArtifact end-to-end", func() {
 		}}
 		// Pre-create the local jar so the build path doesn't fail at the
 		// missing-jar step.
-		Expect(os.WriteFile("x.jar", []byte("dummy"), 0644)).To(Succeed())
+		writeValidTestJar("x.jar")
 		err := BuildArtifactWith(spec, lock, "1.21.1", "client", false)
 		Expect(err).NotTo(HaveOccurred())
 		// Second call without --force should fail because zip exists.
@@ -285,7 +285,7 @@ var _ = Describe("Service BuildArtifact end-to-end", func() {
 		lock := &domain.PackLock{Loader: "neoforge", LoaderVersion: "21.1.219", Mods: map[string]domain.LockedMod{
 			"x": {Name: "X", Scope: "shared", Source: domain.LockedSource{Type: "local", Path: "./x.jar", FileName: "x.jar"}},
 		}}
-		Expect(os.WriteFile("x.jar", []byte("dummy"), 0644)).To(Succeed())
+		writeValidTestJar("x.jar")
 		out, err := BuildArtifactAndReturnPath(spec, lock, "1.21.1", "client", true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(out).To(ContainSubstring(".zip"))
@@ -303,7 +303,7 @@ var _ = Describe("BuildArtifact", func() {
 	It("builds with valid lock", func() {
 		dir := GinkgoT().TempDir()
 		jarPath := filepath.Join(dir, "a.jar")
-		Expect(os.WriteFile(jarPath, []byte("dummy"), 0644)).To(Succeed())
+		writeValidTestJar(jarPath)
 		oldWd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		defer os.Chdir(oldWd)
@@ -348,7 +348,7 @@ var _ = Describe("BuildArtifactAndReturnPath", func() {
 		}
 		// Use a local mod so resolveModJar can find it without a network call.
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 		lock := &domain.PackLock{
 			MinecraftVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "21.0.0",
 			Mods: map[string]domain.LockedMod{
@@ -369,7 +369,7 @@ var _ = Describe("BuildClientServerBuild happy path", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		// Write the lock file where the loader will look for it:
 		// locks/dependencies/<mcVersion>-<loader>.json
@@ -400,7 +400,7 @@ var _ = Describe("BuildArtifactAndReturnPath both target", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		spec := &domain.PackSpec{
 			PackName: "p", MinecraftVersion: "1.21.1",
@@ -492,7 +492,7 @@ var _ = Describe("buildOneArtifactWith mod-missing-from-lock path", func() {
 		// shared+server scope split: spec declares a server-only mod and
 		// the client build only sees the shared one.
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 		lock := &domain.PackLock{
 			MinecraftVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "21.0.0",
 			Mods: map[string]domain.LockedMod{
@@ -516,7 +516,7 @@ var _ = Describe("buildOneArtifactWith force=false and artifact-exists path", fu
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 		lock := &domain.PackLock{
 			MinecraftVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "21.0.0",
 			Mods: map[string]domain.LockedMod{
@@ -539,7 +539,7 @@ var _ = Describe("BuildArtifactAndReturnPath both", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
@@ -578,7 +578,7 @@ var _ = Describe("BuildArtifactWith incomplete mod resolution", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "real.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
@@ -610,7 +610,7 @@ var _ = Describe("BuildArtifactAndReturnPath both error paths", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",
@@ -682,7 +682,7 @@ var _ = Describe("BuildArtifactWith with target=both", func() {
 		DeferCleanup(func() { _ = os.Chdir(wd) })
 
 		jar := filepath.Join(dir, "mod.jar")
-		Expect(os.WriteFile(jar, []byte("x"), 0644)).To(Succeed())
+		writeValidTestJar(jar)
 
 		lock := &domain.PackLock{
 			Loader: "neoforge", LoaderVersion: "21", MinecraftVersion: "1.21.1",

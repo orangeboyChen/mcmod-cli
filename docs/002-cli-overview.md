@@ -285,7 +285,12 @@ hard error: a partial zip that silently drops a mod is worse than a
 failure, because the user would not notice the missing mod until they
 opened the modpack in-game. The build still requires at least one
 curseforge mod to be eligible so `manifest.json` stays a valid CF
-import payload.
+import payload. Before any CF artifact is written, all shared+client jars are
+validated for duplicate classes, unreadable jars, and missing required
+Fabric/NeoForge dependencies. The error lists every conflict and missing mod
+in a stable order; a jar without recognized loader metadata is allowed and is
+only skipped for dependency validation. A first CF build may download cached
+misses before validation.
 
 ### `mcmod tree`
 

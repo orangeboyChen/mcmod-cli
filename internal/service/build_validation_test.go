@@ -18,25 +18,19 @@ import (
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 )
 
-var _ = Describe("Service detectClassConflicts", func() {
-	buildZipWith := func(files map[string]string) string {
-		dir := GinkgoT().TempDir()
-		for name, content := range files {
-			p := filepath.Join(dir, name)
-			Expect(os.MkdirAll(filepath.Dir(p), 0755)).To(Succeed())
-			Expect(os.WriteFile(p, []byte(content), 0644)).To(Succeed())
-		}
-		modFiles := make(map[string]string, len(files))
-		for k := range files {
-			modFiles[k] = filepath.Join(dir, k)
-		}
-		bc := &buildContext{McVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "1.0", RootDir: dir}
-		out := filepath.Join(dir, "out.zip")
-		err := bc.buildZipWith("client", out, modFiles, true)
-		Expect(err).NotTo(HaveOccurred())
-		return out
-	}
+func writeValidTestJar(path string) {
+	f, err := os.Create(path)
+	Expect(err).NotTo(HaveOccurred())
+	w := zip.NewWriter(f)
+	entry, err := w.Create("META-INF/test.txt")
+	Expect(err).NotTo(HaveOccurred())
+	_, err = entry.Write([]byte("test"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(w.Close()).To(Succeed())
+	Expect(f.Close()).To(Succeed())
+}
 
+var _ = Describe("Service detectClassConflicts", func() {
 	makeJarWithClass := func(path, classPath string) {
 		f, err := os.Create(path)
 		Expect(err).NotTo(HaveOccurred())
@@ -56,7 +50,7 @@ var _ = Describe("Service detectClassConflicts", func() {
 		err := bc.buildZipWith("client", filepath.Join(dir, "out.zip"),
 			map[string]string{"a": filepath.Join(dir, "a.jar"), "b": filepath.Join(dir, "b.jar")}, true)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("duplicate"))
+		Expect(err.Error()).To(ContainSubstring("class conflicts"))
 	})
 
 	It("no conflict when classes are unique", func() {
@@ -69,10 +63,14 @@ var _ = Describe("Service detectClassConflicts", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("non-jar path is ignored (skipped from conflict check)", func() {
-		_ = buildZipWith(map[string]string{
-			"mods/a.jar": "fake",
-		})
+	It("rejects an unreadable jar", func() {
+		dir := GinkgoT().TempDir()
+		bc := &buildContext{McVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "1.0", RootDir: dir}
+		err := bc.buildZipWith("client", filepath.Join(dir, "out.zip"), map[string]string{
+			"a": filepath.Join(dir, "mods", "a.jar"),
+		}, true)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("unreadable jars"))
 	})
 
 	It("bad jar path is skipped gracefully", func() {
@@ -81,8 +79,37 @@ var _ = Describe("Service detectClassConflicts", func() {
 		bc := &buildContext{McVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "1.0", RootDir: dir}
 		err := bc.buildZipWith("client", filepath.Join(dir, "out.zip"),
 			map[string]string{"a": filepath.Join(dir, "nonexistent.jar")}, true)
-		// buildZipWith still succeeds because missing files are tolerated at zip time.
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("aggregates multiple class conflicts with all owners", func() {
+		dir := GinkgoT().TempDir()
+		makeJarWithClass(filepath.Join(dir, "a.jar"), "com/foo/A.class")
+		makeJarWithClass(filepath.Join(dir, "b.jar"), "com/foo/A.class")
+		makeJarWithClass(filepath.Join(dir, "c.jar"), "com/foo/B.class")
+		makeJarWithClass(filepath.Join(dir, "d.jar"), "com/foo/B.class")
+		bc := &buildContext{McVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "1.0", RootDir: dir}
+		err := bc.buildZipWith("client", filepath.Join(dir, "out.zip"), map[string]string{
+			"a": filepath.Join(dir, "a.jar"), "b": filepath.Join(dir, "b.jar"),
+			"c": filepath.Join(dir, "c.jar"), "d": filepath.Join(dir, "d.jar"),
+		}, true)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("com/foo/A.class"))
+		Expect(err.Error()).To(ContainSubstring("a (a.jar)"))
+		Expect(err.Error()).To(ContainSubstring("b (b.jar)"))
+		Expect(err.Error()).To(ContainSubstring("com/foo/B.class"))
+		Expect(err.Error()).To(ContainSubstring("c (c.jar)"))
+		Expect(err.Error()).To(ContainSubstring("d (d.jar)"))
+	})
+
+	It("reports unreadable jars before writing an artifact", func() {
+		dir := GinkgoT().TempDir()
+		bc := &buildContext{McVersion: "1.21.1", Loader: "neoforge", LoaderVersion: "1.0", RootDir: dir}
+		err := bc.buildZipWith("client", filepath.Join(dir, "out.zip"), map[string]string{"bad": filepath.Join(dir, "bad.jar")}, true)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("unreadable jars"))
+		_, statErr := os.Stat(filepath.Join(dir, "out.zip"))
+		Expect(statErr).To(MatchError(os.ErrNotExist))
 	})
 })
 
@@ -275,6 +302,18 @@ var _ = Describe("detectMissingRequiredDeps with real jars", func() {
 		err := detectMissingRequiredDeps(bc, modFiles)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("hint:"))
+	})
+
+	It("reports all missing dependencies and their owners", func() {
+		modD := filepath.Join(dir, "d.jar")
+		buildTestJar(modD, "d", "D", "1.0", []string{"missing-a", "missing-b"})
+		bc := &buildContext{Loader: "fabric", McVersion: "1.21.1"}
+		err := validateModFiles(bc, map[string]string{"d": modD, "c": modC})
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("missing-a"))
+		Expect(err.Error()).To(ContainSubstring("missing-b"))
+		Expect(err.Error()).To(ContainSubstring("required by c"))
+		Expect(err.Error()).To(ContainSubstring("required by d"))
 	})
 
 	It("skips non-required deps", func() {

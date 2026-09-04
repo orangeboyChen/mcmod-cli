@@ -668,7 +668,7 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 		})
 		It("N10-18: server zip without serverPackName falls back to packName", func() {
 			os.MkdirAll(filepath.Join(d, "mods"), 0755)
-			os.WriteFile(filepath.Join(d, "mods", "shared.jar"), []byte("s"), 0644)
+			createFixtureJarWithClass(d, "shared.jar", "com/example/Shared.class")
 			os.WriteFile(filepath.Join(d, "packspec.json"), []byte(`{
 				"packName": "fallback", "packVersion": "1.0",
 				"minecraftVersion": "1.21.1", "loaderName": ["neoforge:21.1.219"],
@@ -769,7 +769,7 @@ var _ = Describe("Integration6: spec 7.1-7.8 subcommand coverage", func() {
 			WriteLockJSON(d, "1.21.1", "neoforge", lock)
 			_, stderr, err := runMcmod(d, "build", "1.21.1", "neoforge", "--target", "both")
 			Expect(err).To(HaveOccurred())
-			Expect(stderr).To(ContainSubstring("duplicat")) // relaxed
+			Expect(stderr).To(ContainSubstring("class conflicts"))
 		})
 	})
 
