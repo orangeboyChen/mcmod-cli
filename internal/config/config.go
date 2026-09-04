@@ -44,7 +44,10 @@ func ReadUserConfig() (*Store, error) {
 	path := filepath.Join(homeDir(), ".config", "mcmod", "config.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	var cfg Store
 	if err := json.Unmarshal(data, &cfg); err != nil {

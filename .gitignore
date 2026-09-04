@@ -17,12 +17,13 @@ mcmod.exe
 # Cache
 .cache/
 .mcmod/
-packspec.json
+/packspec.json
 
 # Build output
 releases/
 dist/
-test/examples/
+test/examples/smoke/.cache/
+test/examples/smoke/locks/releases/
 
 # Coverage
 coverage.out

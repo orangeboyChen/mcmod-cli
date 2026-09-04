@@ -1,0 +1,44 @@
+{
+  "loader": "neoforge",
+  "loaderVersion": "21.1.219",
+  "minecraftVersion": "1.21.1",
+  "mods": {
+    "create": {
+      "name": "Create",
+      "version": "6.0.0",
+      "scope": "shared",
+      "source": {
+        "type": "curseforge",
+        "modId": 328085,
+        "fileId": 5812340,
+        "fileName": "create-1.21.1-neoforge.jar"
+      },
+      "hash": "00000000000000000000000000000000"
+    },
+    "jei": {
+      "name": "Just Enough Items",
+      "version": "19.21.0.247",
+      "scope": "client",
+      "source": {
+        "type": "curseforge",
+        "modId": 238222,
+        "fileId": 5812400,
+        "fileName": "jei-1.21.1-neoforge.jar"
+      },
+      "hash": "00000000000000000000000000000000"
+    },
+    "server-enhanced": {
+      "name": "Server Enhanced Mod",
+      "version": "1.4.2",
+      "scope": "server",
+      "source": {
+        "type": "github-release",
+        "repo": "orangeboyChen/mc-server-enhanced-mod",
+        "tag": "v1.4.2",
+        "assetName": "serverenhancedmod-1.21.1-neoforge.jar",
+        "fileName": "serverenhancedmod-1.21.1-neoforge.jar"
+      },
+      "hash": "00000000000000000000000000000000"
+    }
+  }
+}
