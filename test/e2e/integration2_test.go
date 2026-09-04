@@ -75,9 +75,9 @@ func copyExampleWorkspace(t GinkgoTInterface, dst string) {
 	}}
 	writeLockFile(dst, "1.21.1", "neoforge", lock)
 	writeReleaseIndexFile(dst, "1.21.1", &domain.ReleaseIndex{Type: "package", PackName: "e2e", MinecraftVersion: "1.21.1", Releases: []domain.ReleaseRecord{{Version: "0.1.0", Type: "github-release", GitHub: domain.ReleaseGitHub{Repo: "orangeboyChen/mc-e2e", Tag: "v0.1.0", Name: "e2e 0.1.0"}, Artifact: map[string]domain.ReleaseArtifactSet{"neoforge": {Client: "releases/v0.1.0/e2e-1.21.1-neoforge-21.1.219-client.zip", Server: "releases/v0.1.0/e2e-server-1.21.1-neoforge-21.1.219-server.zip"}}}}})
-	seedCachedJar(filepath.Join(dst, ".cache", "curseforge", "328085", "5812340", "create-1.21.1-neoforge.jar"))
-	seedCachedJar(filepath.Join(dst, ".cache", "curseforge", "238222", "5812400", "jei-1.21.1-neoforge.jar"))
-	seedCachedJar(filepath.Join(dst, ".cache", "github-release", "orangeboyChen", "mc-server-enhanced-mod", "v1.4.2", "serverenhancedmod-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(dst, ".mcmod", "cache", "curseforge", "328085", "5812340", "create-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(dst, ".mcmod", "cache", "curseforge", "238222", "5812400", "jei-1.21.1-neoforge.jar"))
+	seedCachedJar(filepath.Join(dst, ".mcmod", "cache", "github-release", "orangeboyChen", "mc-server-enhanced-mod", "v1.4.2", "serverenhancedmod-1.21.1-neoforge.jar"))
 }
 
 // runMcmodWithEnv runs mcmod with explicit env overrides (used to test

@@ -21,14 +21,14 @@ func newConfigCmd() *cobra.Command {
 				if err := service.ConfigureCFKey(args[1]); err != nil {
 					return err
 				}
-				fmt.Println("config: CurseForge API key saved")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "config: CurseForge API key saved")
 				return nil
 			}
 			key := service.GetCFKey()
 			if key == "" {
-				fmt.Println("CurseForge API key: (not set)")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "CurseForge API key: (not set)")
 			} else {
-				fmt.Println("CurseForge API key:", key)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "CurseForge API key:", key)
 			}
 			return nil
 		},

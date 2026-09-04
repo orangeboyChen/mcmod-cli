@@ -39,11 +39,8 @@ var _ = BeforeSuite(func() {
 func runMcmod(dir string, args ...string) (string, string, error) {
 	cmd := exec.Command(mcmodBin, args...)
 	cmd.Dir = dir
-	// Isolate HOME and CURSEFORGE_API_KEY so per-test state stays inside the
-	// temp directory and never pollutes the host user config.
+	// Isolate the process key; project state is already rooted in cmd.Dir.
 	cmd.Env = append(os.Environ(),
-		"HOME="+dir,
-		"XDG_CONFIG_HOME="+dir,
 		"CURSEFORGE_API_KEY=",
 	)
 	var stdout, stderr strings.Builder

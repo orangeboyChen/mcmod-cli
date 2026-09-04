@@ -23,9 +23,9 @@ var _ = Describe("Service mod_service helpers", func() {
 		Expect(parseVersionFromFileName("")).To(Equal(""))
 	})
 
-	It("resolvedCachePath lives under .cache/resolved", func() {
+	It("resolvedCachePath lives under .mcmod/cache/resolved", func() {
 		p := resolvedCachePath("1.21.1", "neoforge")
-		Expect(p).To(Equal(".cache/resolved/1.21.1-neoforge.json"))
+		Expect(p).To(Equal(".mcmod/cache/resolved/1.21.1-neoforge.json"))
 	})
 
 	It("SpecFingerprint is stable", func() {
@@ -523,6 +523,10 @@ var _ = Describe("Service mass", func() {
 	})
 
 	It("ConfigureUserCFKey saves config", func() {
+		dir := GinkgoT().TempDir()
+		orig, _ := os.Getwd()
+		Expect(os.Chdir(dir)).To(Succeed())
+		defer os.Chdir(orig)
 		Expect(ConfigureUserCFKey("uk")).To(Succeed())
 	})
 
@@ -624,8 +628,8 @@ var _ = Describe("resolved cache I/O", func() {
 
 	It("loadResolvedCache returns an empty cache when the file is invalid JSON", func() {
 		dir := GinkgoT().TempDir()
-		Expect(os.MkdirAll(filepath.Join(dir, ".cache", "resolved"), 0755)).To(Succeed())
-		Expect(os.WriteFile(filepath.Join(dir, ".cache", "resolved", "1.21.1-neoforge.json"), []byte("not-json"), 0600)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(dir, ".mcmod", "cache", "resolved"), 0755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(dir, ".mcmod", "cache", "resolved", "1.21.1-neoforge.json"), []byte("not-json"), 0600)).To(Succeed())
 		wd, _ := os.Getwd()
 		Expect(os.Chdir(dir)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chdir(wd) })
@@ -692,7 +696,7 @@ var _ = Describe("canonicalJSON and parseVersionFromFileName", func() {
 var _ = Describe("saveResolvedCache error path", func() {
 	It("returns an error when the working directory is read-only", func() {
 		dir := GinkgoT().TempDir()
-		// Make the working directory read-only so MkdirAll(".cache") fails.
+		// Make the working directory read-only so MkdirAll(".mcmod/cache") fails.
 		Expect(os.Chmod(dir, 0500)).To(Succeed())
 		DeferCleanup(func() { _ = os.Chmod(dir, 0700) })
 

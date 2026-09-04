@@ -10,8 +10,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/orangeboyChen/mcmod-cli/internal/cache"
 	"github.com/orangeboyChen/mcmod-cli/internal/config"
 	"github.com/orangeboyChen/mcmod-cli/internal/domain"
 	"github.com/orangeboyChen/mcmod-cli/internal/netutil"
@@ -56,7 +58,7 @@ func dlCurseForge(src *domain.LockedSource, label string) error {
 	key := config.GetCFKey()
 	url := fmt.Sprintf("https://api.curseforge.com/v1/mods/%d/files/%d/download-url", src.ModID, src.FileID)
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("x-api-key", key)
+	req.Header.Set("X-Api-Key", key)
 	if label != "" {
 		req.Header.Set("X-Netutil-Label", label)
 	}
@@ -91,7 +93,7 @@ func useCurseForgeDownloadURL() bool {
 	}
 }
 
-// downloadCFToCache streams a file from the given URL into the .cache
+// downloadCFToCache streams a file from the given URL into the .mcmod/cache
 // directory for the given CF modId/fileId/fileName. It honours the label
 // for netutil retry logging and surfaces server error bodies in the failure
 // message.
@@ -108,11 +110,11 @@ func downloadCFToCache(src *domain.LockedSource, downloadURL, label string) erro
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("curseforge download returned %d body=%q", resp.StatusCode, readBodyPreview(resp.Body, 512))
 	}
-	dlDir := fmt.Sprintf(".cache/curseforge/%d/%d", src.ModID, src.FileID)
+	dlDir := filepath.Dir(cache.CurseForgePath(fmt.Sprint(src.ModID), fmt.Sprint(src.FileID), src.FileName))
 	if err := os.MkdirAll(dlDir, 0755); err != nil {
 		return fmt.Errorf("curseforge cache dir: %w", err)
 	}
-	path := fmt.Sprintf("%s/%s", dlDir, src.FileName)
+	path := cache.CurseForgePath(fmt.Sprint(src.ModID), fmt.Sprint(src.FileID), src.FileName)
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("curseforge cache file: %w", err)
@@ -134,11 +136,11 @@ func dlGitHub(src *domain.LockedSource, label string) error {
 		return fmt.Errorf("github download returned %d for %s body=%q", resp.StatusCode, assetURL, readBodyPreview(resp.Body, 512))
 	}
 
-	cacheDir := fmt.Sprintf(".cache/github-release/%s/%s/%s", owner, name, src.Tag)
+	cacheDir := filepath.Dir(cache.GitHubReleasePath(owner, name, src.Tag, src.AssetName))
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return fmt.Errorf("github cache dir: %w", err)
 	}
-	path := fmt.Sprintf("%s/%s", cacheDir, src.AssetName)
+	path := cache.GitHubReleasePath(owner, name, src.Tag, src.AssetName)
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("github cache file: %w", err)

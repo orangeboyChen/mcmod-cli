@@ -1,6 +1,6 @@
 // File: internal/config/config.go
 // Created: 2026-06-20
-// Description: Configuration management for API keys (user/project/env priority).
+// Description: Configuration management for project API keys.
 
 package config
 
@@ -8,12 +8,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 )
 
-// Store stores the project and user configuration for mcmod.
+// Store stores the current project configuration for mcmod.
 type Store struct {
 	CFKey string `json:"cfKey,omitempty"`
 }
@@ -23,56 +22,23 @@ func ReadEnvCFKey() string {
 	return os.Getenv("CURSEFORGE_API_KEY")
 }
 
-// homeDir returns the best-effect user home directory, honouring
-// XDG_CONFIG_HOME and HOME so tests and CI environments can isolate config
-// state without touching the real user account.
-func homeDir() string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return v
-	}
-	if v := os.Getenv("HOME"); v != "" {
-		return v
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return "."
-}
+const projectConfigDir = ".mcmod"
 
-// ReadUserConfig returns user-level config from ~/.config/mcmod/config.json.
+func projectConfigPath() string { return filepath.Join(projectConfigDir, "config.json") }
+
+// ReadUserConfig is a compatibility alias for ReadProjectConfig.
 func ReadUserConfig() (*Store, error) {
-	path := filepath.Join(homeDir(), ".config", "mcmod", "config.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var cfg Store
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+	return ReadProjectConfig()
 }
 
-// WriteUserConfig writes config to user-level path.
+// WriteUserConfig is a compatibility alias for WriteProjectConfig.
 func WriteUserConfig(key string) error {
-	dir := filepath.Join(homeDir(), ".config", "mcmod")
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
-	cfg := &Store{CFKey: key}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, "config.json"), data, 0600)
+	return WriteProjectConfig(key)
 }
 
-// ReadProjectConfig returns project-level config from .mcmod/config.json.
+// ReadProjectConfig returns project config from .mcmod/config.json.
 func ReadProjectConfig() (*Store, error) {
-	data, err := os.ReadFile(".mcmod/config.json")
+	data, err := os.ReadFile(projectConfigPath())
 	if err != nil {
 		return nil, nil
 	}
@@ -83,9 +49,9 @@ func ReadProjectConfig() (*Store, error) {
 	return &cfg, nil
 }
 
-// WriteProjectConfig writes project-level config.
+// WriteProjectConfig writes project config to .mcmod/config.json.
 func WriteProjectConfig(key string) error {
-	dir := ".mcmod"
+	dir := projectConfigDir
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
@@ -94,18 +60,15 @@ func WriteProjectConfig(key string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "config.json"), data, 0600)
+	return os.WriteFile(projectConfigPath(), data, 0600)
 }
 
-// GetCFKey returns the effective CF key using priority: env > project > user.
+// GetCFKey returns the effective CF key using priority: env > project config.
 func GetCFKey() string {
 	if k := ReadEnvCFKey(); k != "" {
 		return k
 	}
 	if cfg, err := ReadProjectConfig(); err == nil && cfg != nil && cfg.CFKey != "" {
-		return cfg.CFKey
-	}
-	if cfg, err := ReadUserConfig(); err == nil && cfg != nil && cfg.CFKey != "" {
 		return cfg.CFKey
 	}
 	return ""

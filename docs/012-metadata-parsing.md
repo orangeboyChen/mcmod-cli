@@ -1,20 +1,6 @@
-<!--
-File: docs/012-metadata-parsing.md
-Created: 2026-06-20
-Description: Jar metadata readers for NeoForge and Fabric.
--->
+<!-- File: docs/012-metadata-parsing.md; Created: 2026-09-04; Description: Jar metadata validation. -->
 # Metadata Parsing
 
-## NeoForge
-- Reads `META-INF/neoforge.mods.toml` or `META-INF/mods.toml`
-- Parses simple TOML for modid and version
-- Returns ModInfo with ModID, Version, Dependencies
-
-## Fabric
-- Reads `fabric.mod.json`
-- Parses JSON for id, version, depends
-- Returns ModInfo with ModID, Version, Dependencies
-
-## Auto-Detection
-- `ReadJarMetadata()` tries NeoForge first, then Fabric
-- Returns error if neither format is detected
+Build validation reads NeoForge TOML and Fabric `fabric.mod.json` to identify
+jars and check required dependencies. This is separate from recursive Git
+packspec expansion, which never unpacks jars.

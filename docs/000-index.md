@@ -1,22 +1,24 @@
 <!--
 File: docs/000-index.md
-Created: 2026-06-20
-Description: Index of mcmod documentation.
+Created: 2026-09-04
+Description: Documentation map for mcmod.
 -->
 
-# mcmod Documentation Index
+# mcmod Documentation
 
-1. [Specification](001-spec.md) — packspec.json schema
-2. [CLI Overview](002-cli-overview.md) — Command reference
-3. [Lock Files](003-lock-files.md) — Dependency lock format
-4. [Release Index](004-release-index.md) — Build artifact index
-5. [Source Resolution](005-source-resolution.md) — CurseForge, GitHub, Git, Local
-6. [Mod Key Normalization](006-mod-key-normalization.md) — Key rules
-7. [Scope and Loader](007-scope-and-loader.md) — Mod scoping and loader filtering
-8. [Build Pipeline](008-build-pipeline.md) — Artifact generation
-9. [Graph and Resolution](009-graph-and-resolution.md) — Dependency graph
-10. [Downloader](010-downloader.md) — File download and caching
-11. [Configuration](011-configuration.md) — API key management
-12. [Metadata Parsing](012-metadata-parsing.md) — Jar metadata readers
-13. [Validation](013-validation.md) — Spec, lock, and release validation
-14. [Testing](014-testing.md) — Test coverage and smoke tests
+Read these files in order when changing the project.
+
+1. `001-spec.md` — root packspec contract.
+2. `002-cli-overview.md` — commands and output.
+3. `003-lock-files.md` — generated dependency locks.
+4. `004-release-index.md` — generated release index.
+5. `005-source-resolution.md` — source backends and Git bundles.
+6. `006-mod-key-normalization.md` — stable mod keys.
+7. `007-scope-and-loader.md` — target filtering.
+8. `008-build-pipeline.md` — build artifacts.
+9. `009-graph-and-resolution.md` — recursive Git expansion.
+10. `010-downloader.md` — cache and downloads.
+11. `011-configuration.md` — current-project API key configuration.
+12. `012-metadata-parsing.md` — jar metadata validation.
+13. `013-validation.md` — validation rules.
+14. `014-testing.md` — test and lint commands.

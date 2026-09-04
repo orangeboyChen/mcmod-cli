@@ -14,8 +14,7 @@ mcmod.exe
 # Secrets
 .env
 
-# Cache
-.cache/
+# Project state
 .mcmod/
 /packspec.json
 

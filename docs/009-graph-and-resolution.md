@@ -1,20 +1,8 @@
-<!--
-File: docs/009-graph-and-resolution.md
-Created: 2026-06-20
-Description: Dependency graph and resolution.
--->
+<!-- File: docs/009-graph-and-resolution.md; Created: 2026-09-04; Description: Recursive Git expansion. -->
 # Graph and Resolution
 
-## Dependency Graph
-- Built from packspec mods
-- Each mod is a node with scope, source, and version info
-- Edges represent dependencies between mods
-
-## Cycle Detection
-- Uses DFS-based cycle detection
-- Returns first cycle found (empty = no cycles)
-
-## Resolution
-- Filters mods by loader
-- Resolves sources via CurseForge/GitHub/Git/Local resolvers
-- Generates lock entries
+The graph starts with root spec mods. A Git source loads a remote spec and
+adds matching children; nested Git sources are expanded until all reachable
+sources are concrete. Active repository stacks detect cycles, and duplicate
+namespaced keys fail explicitly. The expansion is transient and is flattened
+into the lock file.

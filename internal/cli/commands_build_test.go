@@ -40,7 +40,7 @@ var _ = Describe("build", func() {
 		dir := chdirTemp(`{"packName":"b","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
 		ensureLocksDir(dir)
 		// Stage a cached jar at the path resolveModJar expects.
-		cached := filepath.Join(dir, ".cache", "curseforge", "100", "200", "mod.jar")
+		cached := filepath.Join(dir, ".mcmod", "cache", "curseforge", "100", "200", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
 		Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{
@@ -59,12 +59,12 @@ var _ = Describe("build", func() {
 		dir := chdirTemp(`{"packName":"b","packVersion":"1","minecraftVersion":"1.21.1","loaderName":["neoforge"]}`)
 		ensureLocksDir(dir)
 		// Seed a cached jar for the curseforge mod so resolveModJar succeeds.
-		cached := filepath.Join(dir, ".cache", "curseforge", "100", "200", "mod.jar")
+		cached := filepath.Join(dir, ".mcmod", "cache", "curseforge", "100", "200", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(cached), 0755)).To(Succeed())
 		Expect(os.WriteFile(cached, []byte("jar"), 0644)).To(Succeed())
 		// Seed a cached jar for the github-release mod so its
 		// overrides/mods/<key>/<jar> bundle succeeds without network.
-		ghCached := filepath.Join(dir, ".cache", "github-release", "o", "r", "v1", "mod.jar")
+		ghCached := filepath.Join(dir, ".mcmod", "cache", "github-release", "o", "r", "v1", "mod.jar")
 		Expect(os.MkdirAll(filepath.Dir(ghCached), 0755)).To(Succeed())
 		Expect(os.WriteFile(ghCached, []byte("ghjar"), 0644)).To(Succeed())
 		writeLockJSON(dir, "1.21.1", "neoforge", &domain.PackLock{

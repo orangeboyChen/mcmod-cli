@@ -20,29 +20,25 @@ func newSetCmd() *cobra.Command {
 		Long: `Set CurseForge API key or other configuration.
 
 Examples:
-  mcmod set cf-key <key>          # user-level (default)
-  mcmod set cf-key <key> --project # project-level
-  mcmod set cf-key <key> --global  # user-level (alias)`,
+  mcmod set cf-key <key>           # current project
+  mcmod set cf-key <key> --project # compatibility alias
+  mcmod set cf-key <key> --global  # compatibility alias`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 || args[0] != "cf-key" {
 				return fmt.Errorf("usage: mcmod set cf-key <key>\nhint: provide the CurseForge API key")
 			}
 			key := args[1]
-			if project {
-				if err := service.ConfigureCFKey(key); err != nil {
-					return fmt.Errorf("set cf-key: %w", err)
-				}
-			} else {
-				if err := service.ConfigureUserCFKey(key); err != nil {
-					return fmt.Errorf("set cf-key: %w", err)
-				}
+			_ = project
+			_ = global
+			if err := service.ConfigureCFKey(key); err != nil {
+				return fmt.Errorf("set cf-key: %w", err)
 			}
-			fmt.Println("set cf-key")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "set cf-key")
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&project, "project", false, "Write to project config (.mcmod/config.json)")
-	cmd.Flags().BoolVar(&global, "global", false, "Write to user config (~/.config/mcmod/config.json)")
+	cmd.Flags().BoolVar(&project, "project", false, "Compatibility alias for the current project config")
+	cmd.Flags().BoolVar(&global, "global", false, "Compatibility alias for the current project config")
 
 	return cmd
 }
