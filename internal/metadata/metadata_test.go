@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -173,6 +174,201 @@ var _ = Describe("Metadata", func() {
 			info, err := ReadJarMetadata(jar)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(info.ModID).To(Equal("auto_mod"))
+		})
+	})
+})
+
+// writeJarEntry writes a jar containing a single entry with the given
+// contents, so the specs below can build jars with one call.
+func writeJarEntry(path, name string, contents []byte) {
+	f, err := os.Create(path)
+	Expect(err).NotTo(HaveOccurred())
+	w := zip.NewWriter(f)
+	wr, err := w.Create(name)
+	Expect(err).NotTo(HaveOccurred())
+	_, err = wr.Write(contents)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(w.Close()).To(Succeed())
+	Expect(f.Close()).To(Succeed())
+}
+
+// paddedNeoForgeTOML builds a neoforge.mods.toml whose dependency table is
+// pushed past the 32KiB mark by `lines` comment lines.
+func paddedNeoForgeTOML(lines int) []byte {
+	var b strings.Builder
+	b.WriteString("modLoader=\"javafml\"\nloaderVersion=\"[1,)\"\nlicense=\"MIT\"\n")
+	b.WriteString("[[mods]]\nmodId=\"bigmod\"\nversion=\"1.0.0\"\ndisplayName=\"Big\"\n")
+	for i := 0; i < lines; i++ {
+		b.WriteString("# padding to push the dependency table past 32KiB\n")
+	}
+	b.WriteString("[[dependencies.bigmod]]\nmodId=\"jei\"\n" +
+		"type=\"required\"\nversionRange=\"[19.0,)\"\n")
+	return []byte(b.String())
+}
+
+// writeDualMetadataJar writes a jar carrying META-INF/mods.toml and, when
+// withNeoForgeFile is set, META-INF/neoforge.mods.toml with identical
+// contents, as Forge -> NeoForge migrations do.
+func writeDualMetadataJar(path, modID string, withNeoForgeFile bool) {
+	body := "modId=\"" + modID + "\"\nversion=\"1.0\"\n" +
+		"[[dependencies." + modID + "]]\nmodId=\"missingdep\"\n" +
+		"mandatory=true\nversionRange=\"[1.0,)\"\n"
+	f, err := os.Create(path)
+	Expect(err).NotTo(HaveOccurred())
+	w := zip.NewWriter(f)
+	names := []string{"META-INF/mods.toml"}
+	if withNeoForgeFile {
+		names = append(names, "META-INF/neoforge.mods.toml")
+	}
+	for _, n := range names {
+		wr, err := w.Create(n)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = wr.Write([]byte(body))
+		Expect(err).NotTo(HaveOccurred())
+	}
+	Expect(w.Close()).To(Succeed())
+	Expect(f.Close()).To(Succeed())
+}
+
+var _ = Describe("jar entry reading", func() {
+	Describe("entries larger than 32KiB", func() {
+		// A single io.Reader.Read on a deflated zip entry returns at most
+		// 32KiB, so a larger entry used to be read only partially. The
+		// dependency tables sit at the end of the file and were lost.
+		It("reads a neoforge.mods.toml without dropping deps", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "big.jar")
+			body := paddedNeoForgeTOML(2000)
+			Expect(len(body)).To(BeNumerically(">", 32*1024))
+			writeJarEntry(jar, "META-INF/neoforge.mods.toml", body)
+
+			info, err := ReadNeoForgeMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			// ModID is deliberately not asserted: identity comes from
+			// [[mods]] and is covered by the mod-identity specs.
+			Expect(info.Dependencies).To(HaveLen(1))
+			Expect(info.Dependencies[0].ModID).To(Equal("jei"))
+			Expect(info.Dependencies[0].Ref).To(Equal("[19.0,)"))
+		})
+
+		It("reads a fabric.mod.json without dropping deps", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "big.jar")
+			body := []byte(`{"id":"bigf","version":"1.0","pad":"` +
+				strings.Repeat("x", 60000) + `","depends":{"jei":"*"}}`)
+			Expect(len(body)).To(BeNumerically(">", 32*1024))
+			writeJarEntry(jar, "fabric.mod.json", body)
+
+			info, err := ReadFabricMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.ModID).To(Equal("bigf"))
+			Expect(info.Version).To(Equal("1.0"))
+			Expect(info.Dependencies).To(HaveLen(1))
+			Expect(info.Dependencies[0].ModID).To(Equal("jei"))
+		})
+
+		It("reads both small and large entries through the dispatcher", func() {
+			dir := GinkgoT().TempDir()
+			small := filepath.Join(dir, "small.jar")
+			large := filepath.Join(dir, "large.jar")
+			writeJarEntry(small, "META-INF/neoforge.mods.toml", paddedNeoForgeTOML(0))
+			writeJarEntry(large, "META-INF/neoforge.mods.toml", paddedNeoForgeTOML(2000))
+
+			for name, jar := range map[string]string{"small": small, "large": large} {
+				info, err := ReadJarMetadata(jar)
+				Expect(err).NotTo(HaveOccurred(), name)
+				Expect(info.Dependencies).To(HaveLen(1), name)
+			}
+		})
+
+		It("readZipEntry returns the full entry for a large file", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "blob.jar")
+			payload := make([]byte, 200000)
+			for i := range payload {
+				payload[i] = byte(i % 251)
+			}
+			writeJarEntry(jar, "blob.bin", payload)
+
+			r, err := zip.OpenReader(jar)
+			Expect(err).NotTo(HaveOccurred())
+			defer r.Close()
+			Expect(r.File).To(HaveLen(1))
+			got, err := readZipEntry(r.File[0])
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(payload))
+		})
+
+		It("readZipEntry handles an empty entry", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "empty.jar")
+			writeJarEntry(jar, "empty.txt", nil)
+
+			r, err := zip.OpenReader(jar)
+			Expect(err).NotTo(HaveOccurred())
+			defer r.Close()
+			Expect(r.File).To(HaveLen(1))
+			got, err := readZipEntry(r.File[0])
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeEmpty())
+		})
+	})
+
+	Describe("jars carrying both metadata files", func() {
+		// Forge -> NeoForge migrations often ship both files with identical
+		// contents. Only one may be parsed, otherwise every dependency is
+		// counted twice and each owner is listed twice in the report.
+		It("counts each dependency once when both files are present", func() {
+			jar := filepath.Join(GinkgoT().TempDir(), "dual.jar")
+			writeDualMetadataJar(jar, "both", true)
+			info, err := ReadNeoForgeMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Dependencies).To(HaveLen(1))
+			Expect(info.Dependencies[0].ModID).To(Equal("missingdep"))
+		})
+
+		It("still reads the legacy mods.toml when it is the only one", func() {
+			jar := filepath.Join(GinkgoT().TempDir(), "legacy.jar")
+			writeDualMetadataJar(jar, "legacy", false)
+			info, err := ReadNeoForgeMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Dependencies).To(HaveLen(1))
+		})
+
+		It("prefers neoforge.mods.toml when both are present but differ", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "pref.jar")
+			f, err := os.Create(jar)
+			Expect(err).NotTo(HaveOccurred())
+			w := zip.NewWriter(f)
+			legacy := "modid=\"from-legacy\"\nversion=\"1.0\"\n"
+			modern := "modid=\"from-neoforge\"\nversion=\"2.0\"\n"
+			wr, err := w.Create("META-INF/mods.toml")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = wr.Write([]byte(legacy))
+			Expect(err).NotTo(HaveOccurred())
+			wr, err = w.Create("META-INF/neoforge.mods.toml")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = wr.Write([]byte(modern))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(w.Close()).To(Succeed())
+			Expect(f.Close()).To(Succeed())
+
+			info, err := ReadNeoForgeMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.ModID).To(Equal("from-neoforge"))
+			Expect(info.Version).To(Equal("2.0"))
+		})
+
+		It("hasZipEntry matches exact names only", func() {
+			jar := filepath.Join(GinkgoT().TempDir(), "names.jar")
+			writeJarEntry(jar, "META-INF/neoforge.mods.toml", []byte("modid=\"x\"\n"))
+			r, err := zip.OpenReader(jar)
+			Expect(err).NotTo(HaveOccurred())
+			defer r.Close()
+			Expect(hasZipEntry(r.File, "META-INF/neoforge.mods.toml")).To(BeTrue())
+			Expect(hasZipEntry(r.File, "META-INF/mods.toml")).To(BeFalse())
+			Expect(hasZipEntry(r.File, "neoforge.mods.toml")).To(BeFalse())
 		})
 	})
 })

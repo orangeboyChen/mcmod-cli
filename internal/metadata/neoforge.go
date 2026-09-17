@@ -26,19 +26,23 @@ func ReadNeoForgeMetadata(jarPath string) (*ModInfo, error) {
 	defer r.Close()
 
 	var info ModInfo
+	// targetFiles is ordered by preference. Only the first file that is
+	// present is parsed: a jar carrying both (common in Forge -> NeoForge
+	// migrations) used to have each of its dependency tables counted twice,
+	// which duplicated every entry in the build validation report.
 	targetFiles := []string{"META-INF/neoforge.mods.toml", "META-INF/mods.toml"}
 	for _, target := range targetFiles {
+		if !hasZipEntry(r.File, target) {
+			continue
+		}
 		for _, f := range r.File {
 			if f.Name != target {
 				continue
 			}
-			rc, err := f.Open()
+			data, err := readZipEntry(f)
 			if err != nil {
 				continue
 			}
-			data := make([]byte, f.UncompressedSize64)
-			_, _ = rc.Read(data)
-			rc.Close()
 
 			parsed := parseSimpleTOML(data)
 			if modID, ok := parsed["modid"].(string); ok {
@@ -51,12 +55,23 @@ func ReadNeoForgeMetadata(jarPath string) (*ModInfo, error) {
 			}
 			info.Dependencies = append(info.Dependencies, parseNeoForgeDependencies(data)...)
 		}
+		break
 	}
 
 	if info.ModID == "" {
 		return nil, fmt.Errorf("neoforge: no modid found in jar metadata")
 	}
 	return &info, nil
+}
+
+// hasZipEntry reports whether a zip entry with the exact name exists.
+func hasZipEntry(files []*zip.File, name string) bool {
+	for _, f := range files {
+		if f.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func parseNeoForgeDependencies(data []byte) []DepInfo {
