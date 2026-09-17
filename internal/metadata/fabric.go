@@ -54,13 +54,10 @@ func ReadFabricMetadata(jarPath string) (*ModInfo, error) {
 		if f.Name != "fabric.mod.json" {
 			continue
 		}
-		rc, err := f.Open()
+		data, err := readZipEntry(f)
 		if err != nil {
 			continue
 		}
-		data := make([]byte, f.UncompressedSize64)
-		_, _ = rc.Read(data)
-		rc.Close()
 
 		var mod FabricMod
 		mod.Raw = make(map[string]json.RawMessage)
