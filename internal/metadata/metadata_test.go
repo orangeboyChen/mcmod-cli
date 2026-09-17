@@ -84,6 +84,117 @@ var _ = Describe("Metadata", func() {
 		})
 	})
 
+	Describe("firstTOMLTableValue", func() {
+		// neooforge.mods.toml declares the mod's own id under [[mods]] and
+		// every dependency's id under [[dependencies.<modId>]], so both share
+		// the key name modId. Only the [[mods]] value identifies the jar.
+		const realistic = `modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+[[mods]]
+modId="examplemod"
+version="1.0.0"
+displayName="Example"
+[[dependencies.examplemod]]
+modId="neoforge"
+type="required"
+versionRange="[21.0.0,)"
+[[dependencies.examplemod]]
+modId="jei"
+type="required"
+versionRange="[19.0.0,)"
+`
+
+		It("reads the mod id from [[mods]] and ignores dependency ids", func() {
+			value, ok := firstTOMLTableValue([]byte(realistic), "modid", "modId")
+			Expect(ok).To(BeTrue())
+			Expect(value).To(Equal("examplemod"))
+		})
+
+		It("matches the lowercase modid spelling", func() {
+			value, ok := firstTOMLTableValue([]byte("[[mods]]\nmodid=\"lower\"\n"), "modid", "modId")
+			Expect(ok).To(BeTrue())
+			Expect(value).To(Equal("lower"))
+		})
+
+		It("accepts a single-bracket table header", func() {
+			value, ok := firstTOMLTableValue([]byte("[mods]\nmodId=\"single\"\n"), "modId")
+			Expect(ok).To(BeTrue())
+			Expect(value).To(Equal("single"))
+		})
+
+		It("matches a nested table name", func() {
+			value, ok := firstTOMLTableValue([]byte("[[mods.sub]]\nmodId=\"nested\"\n"), "modId")
+			Expect(ok).To(BeTrue())
+			Expect(value).To(Equal("nested"))
+		})
+
+		It("returns false when the table is absent", func() {
+			_, ok := firstTOMLTableValue([]byte("[[other]]\nmodId=\"nope\"\n"), "modId")
+			Expect(ok).To(BeFalse())
+		})
+
+		It("returns false when the key is absent from the table", func() {
+			_, ok := firstTOMLTableValue([]byte("[[mods]]\nversion=\"1.0\"\n"), "modId")
+			Expect(ok).To(BeFalse())
+		})
+
+		It("ignores the key once a later table begins", func() {
+			// The dependency table also sets modId; it must not be picked up
+			// once we have left [[mods]].
+			body := "[[mods]]\nversion=\"1.0\"\n[[dependencies.x]]\nmodId=\"dep\"\n"
+			_, ok := firstTOMLTableValue([]byte(body), "modId")
+			Expect(ok).To(BeFalse())
+		})
+
+		It("skips comment lines inside the table", func() {
+			body := "[[mods]]\n# modId=\"commented\"\nmodId=\"real\"\n"
+			value, ok := firstTOMLTableValue([]byte(body), "modId")
+			Expect(ok).To(BeTrue())
+			Expect(value).To(Equal("real"))
+		})
+	})
+
+	Describe("ReadNeoForgeMetadata with dependencies", func() {
+		It("keeps the [[mods]] id and reports every dependency", func() {
+			dir := GinkgoT().TempDir()
+			jar := filepath.Join(dir, "with-deps.jar")
+			f, err := os.Create(jar)
+			Expect(err).NotTo(HaveOccurred())
+			w := zip.NewWriter(f)
+			body := `modLoader="javafml"
+loaderVersion="[1,)"
+[[mods]]
+modId="examplemod"
+version="1.0.0"
+[[dependencies.examplemod]]
+modId="neoforge"
+type="required"
+versionRange="[21.0.0,)"
+[[dependencies.examplemod]]
+modId="jei"
+type="required"
+versionRange="[19.0.0,)"
+`
+			wr, err := w.Create("META-INF/neoforge.mods.toml")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = wr.Write([]byte(body))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(w.Close()).To(Succeed())
+			Expect(f.Close()).To(Succeed())
+
+			info, err := ReadNeoForgeMetadata(jar)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.ModID).To(Equal("examplemod"))
+			Expect(info.Version).To(Equal("1.0.0"))
+			Expect(info.Dependencies).To(HaveLen(2))
+			Expect(info.Dependencies[0].ModID).To(Equal("neoforge"))
+			Expect(info.Dependencies[0].Required).To(BeTrue())
+			Expect(info.Dependencies[1].ModID).To(Equal("jei"))
+			Expect(info.Dependencies[1].Ref).To(Equal("[19.0.0,)"))
+		})
+	})
+
 	Describe("DepInfoFromIdentity", func() {
 		It("splits on colon", func() {
 			Expect(DepInfoFromIdentity("cf:123").ModID).To(Equal("123"))
